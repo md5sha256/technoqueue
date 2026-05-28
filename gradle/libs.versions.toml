@@ -1,0 +1,10 @@
+[versions]
+velocity-api = "3.5.0-SNAPSHOT"
+
+run-task = "3.0.2"
+
+[libraries]
+velocity-api = { module = "com.velocitypowered:velocity-api", version.ref = "velocity-api" }
+
+[plugins]
+run-velocity = { id = "xyz.jpenilla.run-velocity", version.ref = "run-task" }

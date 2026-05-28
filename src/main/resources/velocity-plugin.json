@@ -1,0 +1,9 @@
+{
+  "id": "technoqueue",
+  "name": "technoqueue",
+  "version": "${version}",
+  "main": "io.github.md5sha256.technoqueue.Technoqueue",
+  "authors": [
+    "md5sha256"
+  ]
+}
