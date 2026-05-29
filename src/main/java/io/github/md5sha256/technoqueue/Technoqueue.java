@@ -212,8 +212,8 @@ public class Technoqueue {
     }
 
     private void promoteFromQueue(@NotNull ServerQueueData data) {
-        while (data.hasCapacity() && !data.queue().isEmpty()) {
-            Optional<QueueEntry> next = data.queue().dequePlayer();
+        while (data.hasCapacity()) {
+            Optional<QueueEntry> next = queueManager.beginPromotion(data.serverName());
             if (next.isEmpty()) {
                 return;
             }
@@ -222,14 +222,13 @@ public class Technoqueue {
             int weight = entry.weight();
             Optional<Player> playerOpt = server.getPlayer(uuid);
             if (playerOpt.isEmpty()) {
-                queueManager.dequeue(uuid);
+                queueManager.clearPromoting(uuid);
                 continue;
             }
-            Player player = playerOpt.get();
-            queueManager.dequeue(uuid);
-            player.createConnectionRequest(data.targetServer())
+            playerOpt.get().createConnectionRequest(data.targetServer())
                     .connect()
                     .whenComplete((result, err) -> {
+                        queueManager.clearPromoting(uuid);
                         if (err != null || result == null || !result.isSuccessful()) {
                             logger.debug("Failed to promote {} to {}; re-queueing.",
                                     uuid,

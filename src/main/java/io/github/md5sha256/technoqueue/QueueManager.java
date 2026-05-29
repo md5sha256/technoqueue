@@ -4,8 +4,10 @@ import io.github.md5sha256.technoqueue.config.ServerQueueData;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -17,6 +19,10 @@ public class QueueManager {
     // Tracks which server queue a player is currently in, so we can enforce
     // that a player only ever occupies one queue at a time.
     private final Map<UUID, String> playerQueueLocation = new HashMap<>();
+    // Players whose connect was initiated by the drain. The listener uses this
+    // to distinguish queue-driven promotions from manual /server attempts —
+    // without it, any queued player could bypass the queue by running /server.
+    private final Set<UUID> promoting = new HashSet<>();
 
     public void register(@NotNull ServerQueueData queueData) {
         lock.lock();
@@ -77,6 +83,48 @@ public class QueueManager {
             if (data != null) {
                 data.queue().dequeuePlayer(player);
             }
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    // Atomically pops the head of the named queue, clears its location tracking,
+    // and marks the player as being promoted. Splitting these steps would let a
+    // queued player's manual /server slip through between the dequeue and the
+    // mark, bypassing the queue.
+    public @NotNull Optional<QueueEntry> beginPromotion(@NotNull String serverName) {
+        lock.lock();
+        try {
+            ServerQueueData data = queueDataMap.get(serverName);
+            if (data == null) {
+                return Optional.empty();
+            }
+            Optional<QueueEntry> next = data.queue().dequePlayer();
+            if (next.isEmpty()) {
+                return Optional.empty();
+            }
+            UUID uuid = next.get().player();
+            playerQueueLocation.remove(uuid);
+            promoting.add(uuid);
+            return next;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public void clearPromoting(@NotNull UUID player) {
+        lock.lock();
+        try {
+            promoting.remove(player);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public boolean isPromoting(@NotNull UUID player) {
+        lock.lock();
+        try {
+            return promoting.contains(player);
         } finally {
             lock.unlock();
         }

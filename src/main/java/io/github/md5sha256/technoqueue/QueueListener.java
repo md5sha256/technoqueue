@@ -85,10 +85,10 @@ public class QueueListener {
         }
         ServerQueueData data = dataOpt.get();
         Player player = event.getPlayer();
-        // Allow drain-initiated promotions: if the player is currently queued for this
-        // server, this connect is the queue routing them in — let it through.
-        Optional<String> queued = queueManager.queuedServer(player.getUniqueId());
-        if (queued.isPresent() && queued.get().equals(serverName)) {
+        // Only let the drain's own promotion connect through. Checking "is this
+        // player in the queue for serverName" would let queued players bypass
+        // the queue by running /server <target> themselves.
+        if (queueManager.isPromoting(player.getUniqueId())) {
             return;
         }
         if (hasBypass(player, data)) {
