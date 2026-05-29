@@ -2,11 +2,13 @@
 velocity-api = "3.5.0-SNAPSHOT"
 configurate = "4.1.2"
 junit = "5.11.3"
+luckperms-api = "5.5"
 
 run-task = "3.0.2"
 
 [libraries]
 velocity-api = { module = "com.velocitypowered:velocity-api", version.ref = "velocity-api" }
+luckperms-api = { module = "net.luckperms:api", version.ref = "luckperms-api" }
 configurate-yaml = { module = "org.spongepowered:configurate-yaml", version.ref = "configurate" }
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }

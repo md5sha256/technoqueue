@@ -11,11 +11,18 @@ import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
+import io.github.md5sha256.technoqueue.config.PermissionWeight;
 import io.github.md5sha256.technoqueue.config.ServerEntry;
 import io.github.md5sha256.technoqueue.config.ServerQueueData;
 import io.github.md5sha256.technoqueue.config.Settings;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.luckperms.api.LuckPerms;
+import net.luckperms.api.LuckPermsProvider;
+import net.luckperms.api.cacheddata.CachedPermissionData;
+import net.luckperms.api.context.ContextManager;
+import net.luckperms.api.model.user.User;
+import net.luckperms.api.query.QueryOptions;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.spongepowered.configurate.CommentedConfigurationNode;
@@ -28,6 +35,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -39,6 +47,8 @@ public class Technoqueue {
     private final ProxyServer server;
     private final Path dataDir;
     private final QueueManager queueManager = new QueueManager();
+    private List<PermissionWeight> permissionWeights = List.of();
+    private LuckPerms luckPerms;
 
     @Inject
     public Technoqueue(@NotNull Logger logger,
@@ -47,6 +57,53 @@ public class Technoqueue {
         this.logger = logger;
         this.server = server;
         this.dataDir = dataDir;
+    }
+
+    private boolean hasBypass(@NotNull Player player, @NotNull ServerQueueData data) {
+        String permission = data.bypassPermission();
+        if (permission == null) {
+            return false;
+        }
+        CachedPermissionData permData = permissionData(player);
+        return permData != null && permData.checkPermission(permission).asBoolean();
+    }
+
+    private @org.jetbrains.annotations.Nullable CachedPermissionData permissionData(@NotNull Player player) {
+        User user = luckPerms.getUserManager().getUser(player.getUniqueId());
+        if (user == null) {
+            return null;
+        }
+        ContextManager contextManager = luckPerms.getContextManager();
+        QueryOptions options = contextManager.getQueryOptions(user)
+                .orElseGet(contextManager::getStaticQueryOptions);
+        return user.getCachedData().getPermissionData(options);
+    }
+
+    private static @NotNull Settings loadConfig(@NotNull Path dataDir) throws IOException {
+        Files.createDirectories(dataDir);
+        Path file = dataDir.resolve("settings.yml");
+        if (!Files.exists(file)) {
+            writeDefaultConfig(file);
+        }
+        YamlConfigurationLoader loader = YamlConfigurationLoader.builder()
+                .path(file)
+                .build();
+        CommentedConfigurationNode root = loader.load();
+        try {
+            Settings config = root.get(Settings.class);
+            return config == null ? new Settings() : config;
+        } catch (ConfigurateException e) {
+            throw new IOException("Failed to parse technoqueue.yml", e);
+        }
+    }
+
+    private static void writeDefaultConfig(@NotNull Path file) throws IOException {
+        try (InputStream in = Technoqueue.class.getResourceAsStream("/settings.yml")) {
+            if (in == null) {
+                throw new IOException("Default technoqueue.yml resource missing from plugin jar.");
+            }
+            Files.copy(in, file);
+        }
     }
 
     @Subscribe
@@ -58,6 +115,10 @@ public class Technoqueue {
             logger.error("Failed to load technoqueue config; queues disabled.", e);
             return;
         }
+        this.luckPerms = LuckPermsProvider.get();
+        List<PermissionWeight> sorted = new ArrayList<>(config.permissions());
+        sorted.sort(Comparator.comparingInt(PermissionWeight::weight).reversed());
+        this.permissionWeights = List.copyOf(sorted);
         Duration drainInterval = Duration.ofSeconds(config.drainIntervalSeconds());
         for (Map.Entry<String, ServerEntry> mapEntry : config.servers().entrySet()) {
             String name = mapEntry.getKey();
@@ -75,13 +136,17 @@ public class Technoqueue {
             for (String fallbackName : entry.fallbacks()) {
                 Optional<RegisteredServer> fallback = server.getServer(fallbackName);
                 if (fallback.isEmpty()) {
-                    logger.warn("Queue for '{}' — fallback '{}' not registered; skipping it.", name, fallbackName);
+                    logger.warn("Queue for '{}' — fallback '{}' not registered; skipping it.",
+                            name,
+                            fallbackName);
                     continue;
                 }
                 fallbacks.add(fallback.get());
             }
             if (fallbacks.isEmpty()) {
-                logger.warn("Skipping queue for '{}' — none of the configured fallbacks are registered.", name);
+                logger.warn(
+                        "Skipping queue for '{}' — none of the configured fallbacks are registered.",
+                        name);
                 continue;
             }
             ServerQueueData data = new ServerQueueData(
@@ -119,7 +184,9 @@ public class Technoqueue {
             return;
         }
         Optional<RegisteredServer> fallback = selectFallback(data);
-        if (fallback.isPresent() && queueManager.enqueue(player.getUniqueId(), serverName, 0) == EnqueueResult.SUCCESS) {
+        if (fallback.isPresent() && queueManager.enqueue(player.getUniqueId(),
+                serverName,
+                resolveWeight(player)) == EnqueueResult.SUCCESS) {
             event.setInitialServer(fallback.get());
             player.sendMessage(Component.text(
                     "Server '" + serverName + "' is full — you've been placed in the queue.",
@@ -134,7 +201,9 @@ public class Technoqueue {
 
     @Subscribe
     public void onServerPreConnect(ServerPreConnectEvent event) {
-        RegisteredServer destination = event.getResult().getServer().orElse(event.getOriginalServer());
+        RegisteredServer destination = event.getResult()
+                .getServer()
+                .orElse(event.getOriginalServer());
         String serverName = destination.getServerInfo().getName();
         Optional<ServerQueueData> dataOpt = queueManager.get(serverName);
         if (dataOpt.isEmpty()) {
@@ -155,7 +224,9 @@ public class Technoqueue {
             return;
         }
         Optional<RegisteredServer> fallback = selectFallback(data);
-        if (fallback.isPresent() && queueManager.enqueue(player.getUniqueId(), serverName, 0) == EnqueueResult.SUCCESS) {
+        if (fallback.isPresent() && queueManager.enqueue(player.getUniqueId(),
+                serverName,
+                resolveWeight(player)) == EnqueueResult.SUCCESS) {
             event.setResult(ServerPreConnectEvent.ServerResult.allowed(fallback.get()));
             player.sendMessage(Component.text(
                     "Server '" + serverName + "' is full — you've been placed in the queue.",
@@ -196,9 +267,25 @@ public class Technoqueue {
         queueManager.dequeue(event.getPlayer().getUniqueId());
     }
 
-    private static boolean hasBypass(@NotNull Player player, @NotNull ServerQueueData data) {
-        String permission = data.bypassPermission();
-        return permission != null && player.hasPermission(permission);
+    // Returns the highest configured weight for any permission the player holds
+    // according to LuckPerms, or 0 if none match. Uses the player's contextual
+    // query options so per-context permission grants behave as expected.
+    private int resolveWeight(@NotNull Player player) {
+        if (permissionWeights.isEmpty()) {
+            return 0;
+        }
+        CachedPermissionData permData = permissionData(player);
+        if (permData == null) {
+            return 0;
+        }
+        // permissionWeights is sorted by weight descending at load time, so the
+        // first hit is the highest weight the player qualifies for.
+        for (PermissionWeight pw : permissionWeights) {
+            if (permData.checkPermission(pw.permission()).asBoolean()) {
+                return pw.weight();
+            }
+        }
+        return 0;
     }
 
     // Returns the next fallback in declaration order after the one named
@@ -220,7 +307,8 @@ public class Technoqueue {
         RegisteredServer firstChoice = null;
         for (int i = from + 1; i < fallbacks.size(); i++) {
             RegisteredServer fallback = fallbacks.get(i);
-            Optional<ServerQueueData> managed = queueManager.get(fallback.getServerInfo().getName());
+            Optional<ServerQueueData> managed = queueManager.get(fallback.getServerInfo()
+                    .getName());
             if (managed.isPresent()) {
                 if (managed.get().hasCapacity()) {
                     return Optional.of(fallback);
@@ -256,33 +344,6 @@ public class Technoqueue {
         return Optional.ofNullable(firstChoice);
     }
 
-    private static @NotNull Settings loadConfig(@NotNull Path dataDir) throws IOException {
-        Files.createDirectories(dataDir);
-        Path file = dataDir.resolve("settings.yml");
-        if (!Files.exists(file)) {
-            writeDefaultConfig(file);
-        }
-        YamlConfigurationLoader loader = YamlConfigurationLoader.builder()
-                .path(file)
-                .build();
-        CommentedConfigurationNode root = loader.load();
-        try {
-            Settings config = root.get(Settings.class);
-            return config == null ? new Settings() : config;
-        } catch (ConfigurateException e) {
-            throw new IOException("Failed to parse technoqueue.yml", e);
-        }
-    }
-
-    private static void writeDefaultConfig(@NotNull Path file) throws IOException {
-        try (InputStream in = Technoqueue.class.getResourceAsStream("/settings.yml")) {
-            if (in == null) {
-                throw new IOException("Default technoqueue.yml resource missing from plugin jar.");
-            }
-            Files.copy(in, file);
-        }
-    }
-
     private void scheduleDrain(@NotNull ServerQueueData data, @NotNull Duration interval) {
         server.getScheduler()
                 .buildTask(this, () -> drain(data))
@@ -306,7 +367,9 @@ public class Technoqueue {
             if (next.isEmpty()) {
                 return;
             }
-            UUID uuid = next.get().player();
+            QueueEntry entry = next.get();
+            UUID uuid = entry.player();
+            int weight = entry.weight();
             Optional<Player> playerOpt = server.getPlayer(uuid);
             if (playerOpt.isEmpty()) {
                 queueManager.dequeue(uuid);
@@ -314,12 +377,16 @@ public class Technoqueue {
             }
             Player player = playerOpt.get();
             queueManager.dequeue(uuid);
-            player.createConnectionRequest(data.targetServer()).connect().whenComplete((result, err) -> {
-                if (err != null || result == null || !result.isSuccessful()) {
-                    logger.debug("Failed to promote {} to {}; re-queueing.", uuid, data.serverName());
-                    queueManager.enqueue(uuid, data.serverName(), 0);
-                }
-            });
+            player.createConnectionRequest(data.targetServer())
+                    .connect()
+                    .whenComplete((result, err) -> {
+                        if (err != null || result == null || !result.isSuccessful()) {
+                            logger.debug("Failed to promote {} to {}; re-queueing.",
+                                    uuid,
+                                    data.serverName());
+                            queueManager.enqueue(uuid, data.serverName(), weight);
+                        }
+                    });
         }
     }
 }

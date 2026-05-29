@@ -11,6 +11,7 @@ repositories {
 
 dependencies {
     compileOnly(libs.velocity.api)
+    compileOnly(libs.luckperms.api)
     implementation(libs.configurate.yaml)
 
     testImplementation(libs.velocity.api)

@@ -5,5 +5,11 @@
   "main": "io.github.md5sha256.technoqueue.Technoqueue",
   "authors": [
     "md5sha256"
+  ],
+  "dependencies": [
+    {
+      "id": "luckperms",
+      "optional": false
+    }
   ]
 }
