@@ -2,6 +2,7 @@ package io.github.md5sha256.technoqueue;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -11,8 +12,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class QueueManagerTest {
 
     private static ServerQueueData data(String name, int maxQueueSize) {
-        // QueueManager never touches targetServer/fallbackServer, so nulls are safe here.
-        return new ServerQueueData(name, null, null, 0, new PlayerQueue(maxQueueSize));
+        // QueueManager never touches targetServer/fallbackServers, so nulls are safe here.
+        return new ServerQueueData(name, null, List.of(), 0, new PlayerQueue(maxQueueSize));
     }
 
     @Test

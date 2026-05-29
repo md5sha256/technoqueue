@@ -3,18 +3,34 @@ package io.github.md5sha256.technoqueue;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.List;
+
 public record ServerQueueData(String serverName, RegisteredServer targetServer,
-                              RegisteredServer fallbackServer, int targetCapacity,
+                              List<RegisteredServer> fallbackServers, int targetCapacity,
                               PlayerQueue queue) {
 
     public ServerQueueData(
             @NotNull String serverName,
             @NotNull RegisteredServer targetServer,
-            @NotNull RegisteredServer fallbackServer,
+            @NotNull List<RegisteredServer> fallbackServers,
             int targetCapacity,
             int queue
     ) {
-        this(serverName, targetServer, fallbackServer, targetCapacity, new PlayerQueue(queue));
+        this(serverName, targetServer, fallbackServers, targetCapacity, new PlayerQueue(queue));
+    }
+
+    public ServerQueueData(
+            @NotNull String serverName,
+            RegisteredServer targetServer,
+            @NotNull List<RegisteredServer> fallbackServers,
+            int targetCapacity,
+            @NotNull PlayerQueue queue
+    ) {
+        this.serverName = serverName;
+        this.targetServer = targetServer;
+        this.fallbackServers = List.copyOf(fallbackServers);
+        this.targetCapacity = targetCapacity;
+        this.queue = queue;
     }
 
     @Override
@@ -28,8 +44,8 @@ public record ServerQueueData(String serverName, RegisteredServer targetServer,
     }
 
     @Override
-    public @NotNull RegisteredServer fallbackServer() {
-        return this.fallbackServer;
+    public @NotNull List<RegisteredServer> fallbackServers() {
+        return this.fallbackServers;
     }
 
     @Override

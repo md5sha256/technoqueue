@@ -3,13 +3,17 @@
 # Each entry under `servers` defines a queue-managed backend:
 #   target-capacity   Max concurrent players on the backend before queueing kicks in.
 #   max-queue-size    Max queued players; further connections are rejected.
-#   fallback          Server name where queued players wait.
+#   fallbacks         Ordered list of servers where queued players wait. Tried in
+#                     declaration order; the first one with available capacity
+#                     (or the first reachable unmanaged server) is used.
 #
 # Example:
 #   servers:
 #     main:
 #       target-capacity: 200
 #       max-queue-size: 500
-#       fallback: lobby
+#       fallbacks:
+#         - lobby
+#         - lobby-overflow
 
 servers: {}
