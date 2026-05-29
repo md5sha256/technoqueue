@@ -12,6 +12,11 @@ repositories {
 dependencies {
     compileOnly(libs.velocity.api)
     implementation(libs.configurate.yaml)
+
+    testImplementation(libs.velocity.api)
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 java {
@@ -28,5 +33,9 @@ tasks {
         filesMatching("velocity-plugin.json") {
             expand(props)
         }
+    }
+
+    test {
+        useJUnitPlatform()
     }
 }
