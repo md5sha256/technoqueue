@@ -3,6 +3,7 @@ package io.github.md5sha256.technoqueue;
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.command.SimpleCommand;
 import com.velocitypowered.api.proxy.Player;
+import io.github.md5sha256.technoqueue.config.ServerQueueData;
 import io.github.md5sha256.technoqueue.localization.MessageContainer;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
@@ -10,6 +11,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 public class QueueCommand implements SimpleCommand {
 
@@ -32,6 +34,7 @@ public class QueueCommand implements SimpleCommand {
         switch (args[0].toLowerCase()) {
             case "leave" -> handleLeave(source);
             case "status" -> handleStatus(source);
+            case "info" -> handleInfo(source, args);
             default -> source.sendMessage(messages.prefixedTemplate("queue.usage"));
         }
     }
@@ -41,7 +44,7 @@ public class QueueCommand implements SimpleCommand {
         String[] args = invocation.arguments();
         if (args.length <= 1) {
             String prefix = args.length == 0 ? "" : args[0].toLowerCase();
-            return List.of("leave", "status").stream()
+            return Stream.of("leave", "status", "info")
                     .filter(s -> s.startsWith(prefix))
                     .toList();
         }
@@ -61,6 +64,24 @@ public class QueueCommand implements SimpleCommand {
         queueManager.dequeue(player.getUniqueId());
         player.sendMessage(messages.prefixedTemplate("queue.leave-success",
                 Placeholder.unparsed("server", queued.get())));
+    }
+
+    private void handleInfo(@NotNull CommandSource source, @NotNull String[] args) {
+        if (args.length < 2) {
+            source.sendMessage(messages.prefixedTemplate("queue.info-usage"));
+            return;
+        }
+        String serverName = args[1];
+        Optional<ServerQueueData> dataOpt = queueManager.get(serverName);
+        if (dataOpt.isEmpty()) {
+            source.sendMessage(messages.prefixedTemplate("queue.info-unknown-server",
+                    Placeholder.unparsed("server", serverName)));
+            return;
+        }
+        int size = dataOpt.get().queue().size();
+        source.sendMessage(messages.prefixedTemplate("queue.info",
+                Placeholder.unparsed("server", serverName),
+                Placeholder.unparsed("size", Integer.toString(size))));
     }
 
     private void handleStatus(@NotNull CommandSource source) {

@@ -12,7 +12,12 @@ queue:
   full-disconnect: "<red>The queue for '<server>' is full. Please try again later.</red>"
   # <server> -- the target server name
   full-denied: "<red>The queue for '<server>' is full.</red>"
-  usage: "<gray>Usage: /queue <leave|status></gray>"
+  usage: "<gray>Usage: /queue <leave|status|info></gray>"
+  # <server>, <size> -- current number of players queued for <server>
+  info: "<gray><yellow><server></yellow> has <gold><size></gold> player(s) in queue.</gray>"
+  info-usage: "<gray>Usage: /queue info <server></gray>"
+  # <server> -- the unknown server name supplied to /queue info
+  info-unknown-server: "<red>No queue is configured for server '<server>'.</red>"
   # <server> -- the queue the player left
   leave-success: "<green>You have left the queue for '<server>'.</green>"
   leave-not-queued: "<red>You are not currently in a queue.</red>"
