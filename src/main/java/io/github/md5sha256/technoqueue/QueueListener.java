@@ -97,11 +97,21 @@ public class QueueListener {
         if (data.queue().isEmpty() && data.hasCapacity()) {
             return;
         }
-        Optional<RegisteredServer> fallback = selectFallback(data);
-        if (fallback.isPresent() && queueManager.enqueue(player.getUniqueId(),
+        boolean alreadyConnected = player.getCurrentServer().isPresent();
+        Optional<RegisteredServer> fallback = alreadyConnected
+                ? Optional.empty()
+                : selectFallback(data);
+        boolean canEnqueue = alreadyConnected || fallback.isPresent();
+        if (canEnqueue && queueManager.enqueue(player.getUniqueId(),
                 serverName,
                 resolveWeight(player)) == EnqueueResult.SUCCESS) {
-            event.setResult(ServerPreConnectEvent.ServerResult.allowed(fallback.get()));
+            // Only redirect to a fallback when the player isn't already on a
+            // server; otherwise just deny the /server attempt so they stay put.
+            if (alreadyConnected) {
+                event.setResult(ServerPreConnectEvent.ServerResult.denied());
+            } else {
+                event.setResult(ServerPreConnectEvent.ServerResult.allowed(fallback.get()));
+            }
             player.sendMessage(messages.prefixedTemplate("queue.joined",
                     Placeholder.unparsed("server", serverName)));
         } else {
