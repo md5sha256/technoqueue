@@ -38,3 +38,7 @@ permissions: []
 # How often (in seconds) each queue tries to promote waiting players onto its
 # target server.
 drain-interval-seconds: 10
+
+# How often (in seconds) queued players receive an action-bar update with their
+# current position. Set to 0 to disable.
+action-bar-interval-seconds: 5
