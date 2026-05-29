@@ -108,19 +108,41 @@ the Velocity working directory. In the dev stack it's mounted from
 `docker/velocity/plugins/technoqueue/technoqueue.yml`.
 
 ```yaml
+drain-interval-seconds: 10   # how often each queue tries to promote its head
+
 servers:
   <velocity-server-name>:
     target-capacity: 200    # max players on the backend before queueing kicks in
     max-queue-size: 500     # max queued players; further connections are rejected
     fallback: <velocity-server-name>   # where queued players wait
+
+permissions:
+  - permission: technoqueue.priority.vip
+    weight: 10
+  - permission: technoqueue.priority.staff
+    weight: 100
 ```
 
 YAML keys are kebab-case — Configurate's default ObjectMapper derives them from
 the camelCase Java field names on `ServerEntry`.
 
 Each entry under `servers` is keyed by a Velocity server name (i.e. a key from
-the `[servers]` table in `velocity.toml`). The drain interval is currently
-hard-coded to 10 seconds.
+the `[servers]` table in `velocity.toml`).
+
+`permissions` maps a Velocity permission node to a queue weight. When a player
+joins a queue, they are inserted ahead of everyone with a strictly lower
+weight. Players without any matching permission default to weight 0. Within a
+single weight tier, ordering is FIFO.
+
+## Commands
+
+`/queue` is registered on the proxy and exposes the following subcommands:
+
+| Subcommand            | Description                                                       |
+|-----------------------|-------------------------------------------------------------------|
+| `/queue status`       | Show the running player's position and total size in their queue. |
+| `/queue leave`        | Leave the queue the running player is currently in.               |
+| `/queue info <server>`| Show the current size of the named server's queue.                |
 
 ## Forwarding
 
