@@ -15,7 +15,7 @@ public record Settings(@NotNull @Setting @Required Map<String, ServerEntry> serv
                        @Setting long actionBarIntervalSeconds) {
 
     public Settings() {
-        this(Map.of(), List.of(), 10L, 5L);
+        this(Map.of(), List.of(), 10L, 2L);
     }
 
     public Settings(@NotNull Map<String, ServerEntry> servers,

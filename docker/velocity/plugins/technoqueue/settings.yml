@@ -14,4 +14,4 @@ servers:
       - limbo-queue-2
 
 drain-interval-seconds: 10
-action-bar-interval-seconds: 5
+action-bar-interval-seconds: 2
