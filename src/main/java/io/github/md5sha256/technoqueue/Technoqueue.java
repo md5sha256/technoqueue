@@ -15,8 +15,10 @@ import io.github.md5sha256.technoqueue.config.PermissionWeight;
 import io.github.md5sha256.technoqueue.config.ServerEntry;
 import io.github.md5sha256.technoqueue.config.ServerQueueData;
 import io.github.md5sha256.technoqueue.config.Settings;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
+import io.github.md5sha256.technoqueue.localization.MessageContainer;
+import io.github.md5sha256.technoqueue.localization.MessageDefinitions;
+import io.github.md5sha256.technoqueue.localization.MessagesYamlLoader;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.luckperms.api.LuckPerms;
 import net.luckperms.api.LuckPermsProvider;
 import net.luckperms.api.cacheddata.CachedPermissionData;
@@ -47,6 +49,7 @@ public class Technoqueue {
     private final ProxyServer server;
     private final Path dataDir;
     private final QueueManager queueManager = new QueueManager();
+    private final MessageContainer messages = new MessageContainer();
     private List<PermissionWeight> permissionWeights = List.of();
     private LuckPerms luckPerms;
 
@@ -106,6 +109,24 @@ public class Technoqueue {
         }
     }
 
+    private static void writeDefaultMessages(@NotNull Path file) throws IOException {
+        try (InputStream in = Technoqueue.class.getResourceAsStream("/messages.yml")) {
+            if (in == null) {
+                throw new IOException("Default messages.yml resource missing from plugin jar.");
+            }
+            Files.copy(in, file);
+        }
+    }
+
+    private @NotNull MessageDefinitions loadMessages() throws IOException {
+        Files.createDirectories(dataDir);
+        Path file = dataDir.resolve("messages.yml");
+        if (!Files.exists(file)) {
+            writeDefaultMessages(file);
+        }
+        return MessagesYamlLoader.load(file);
+    }
+
     @Subscribe
     public void onProxyInitialization(ProxyInitializeEvent event) {
         Settings config;
@@ -114,6 +135,11 @@ public class Technoqueue {
         } catch (Exception e) {
             logger.error("Failed to load technoqueue config; queues disabled.", e);
             return;
+        }
+        try {
+            this.messages.load(loadMessages());
+        } catch (IOException e) {
+            logger.error("Failed to load technoqueue messages; using defaults.", e);
         }
         this.luckPerms = LuckPermsProvider.get();
         List<PermissionWeight> sorted = new ArrayList<>(config.permissions());
@@ -188,14 +214,12 @@ public class Technoqueue {
                 serverName,
                 resolveWeight(player)) == EnqueueResult.SUCCESS) {
             event.setInitialServer(fallback.get());
-            player.sendMessage(Component.text(
-                    "Server '" + serverName + "' is full — you've been placed in the queue.",
-                    NamedTextColor.YELLOW));
+            player.sendMessage(messages.prefixedTemplate("queue.joined",
+                    Placeholder.unparsed("server", serverName)));
         } else {
             event.setInitialServer(null);
-            player.disconnect(Component.text(
-                    "The queue for '" + serverName + "' is full. Please try again later.",
-                    NamedTextColor.RED));
+            player.disconnect(messages.template("queue.full-disconnect",
+                    Placeholder.unparsed("server", serverName)));
         }
     }
 
@@ -228,14 +252,12 @@ public class Technoqueue {
                 serverName,
                 resolveWeight(player)) == EnqueueResult.SUCCESS) {
             event.setResult(ServerPreConnectEvent.ServerResult.allowed(fallback.get()));
-            player.sendMessage(Component.text(
-                    "Server '" + serverName + "' is full — you've been placed in the queue.",
-                    NamedTextColor.YELLOW));
+            player.sendMessage(messages.prefixedTemplate("queue.joined",
+                    Placeholder.unparsed("server", serverName)));
         } else {
             event.setResult(ServerPreConnectEvent.ServerResult.denied());
-            player.sendMessage(Component.text(
-                    "The queue for '" + serverName + "' is full.",
-                    NamedTextColor.RED));
+            player.sendMessage(messages.prefixedTemplate("queue.full-denied",
+                    Placeholder.unparsed("server", serverName)));
         }
     }
 

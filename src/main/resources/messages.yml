@@ -1,0 +1,14 @@
+# Technoqueue messages. MiniMessage syntax: https://docs.advntr.dev/minimessage/format.html
+#
+# Keys can be nested; the loader flattens them with dots (e.g. queue.joined).
+# Lists are joined with newlines. Available placeholders are noted per entry.
+
+prefix: "<gray>[<aqua>Queue</aqua>]</gray>"
+
+queue:
+  # <server> -- the target server name
+  joined: "<yellow>Server '<server>' is full — you've been placed in the queue.</yellow>"
+  # <server> -- the target server name
+  full-disconnect: "<red>The queue for '<server>' is full. Please try again later.</red>"
+  # <server> -- the target server name
+  full-denied: "<red>The queue for '<server>' is full.</red>"
