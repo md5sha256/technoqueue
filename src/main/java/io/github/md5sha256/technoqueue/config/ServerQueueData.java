@@ -1,22 +1,25 @@
-package io.github.md5sha256.technoqueue;
+package io.github.md5sha256.technoqueue.config;
 
 import com.velocitypowered.api.proxy.server.RegisteredServer;
+import io.github.md5sha256.technoqueue.PlayerQueue;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
 public record ServerQueueData(String serverName, RegisteredServer targetServer,
                               List<RegisteredServer> fallbackServers, int targetCapacity,
-                              PlayerQueue queue) {
+                              PlayerQueue queue, @Nullable String bypassPermission) {
 
     public ServerQueueData(
             @NotNull String serverName,
             @NotNull RegisteredServer targetServer,
             @NotNull List<RegisteredServer> fallbackServers,
             int targetCapacity,
-            int queue
+            int queue,
+            @Nullable String bypassPermission
     ) {
-        this(serverName, targetServer, fallbackServers, targetCapacity, new PlayerQueue(queue));
+        this(serverName, targetServer, fallbackServers, targetCapacity, new PlayerQueue(queue), bypassPermission);
     }
 
     public ServerQueueData(
@@ -24,13 +27,15 @@ public record ServerQueueData(String serverName, RegisteredServer targetServer,
             RegisteredServer targetServer,
             @NotNull List<RegisteredServer> fallbackServers,
             int targetCapacity,
-            @NotNull PlayerQueue queue
+            @NotNull PlayerQueue queue,
+            @Nullable String bypassPermission
     ) {
         this.serverName = serverName;
         this.targetServer = targetServer;
         this.fallbackServers = List.copyOf(fallbackServers);
         this.targetCapacity = targetCapacity;
         this.queue = queue;
+        this.bypassPermission = bypassPermission;
     }
 
     @Override

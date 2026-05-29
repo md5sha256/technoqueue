@@ -1,5 +1,6 @@
 package io.github.md5sha256.technoqueue;
 
+import io.github.md5sha256.technoqueue.config.ServerQueueData;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.HashMap;

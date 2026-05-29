@@ -6,6 +6,9 @@
 #   fallbacks         Ordered list of servers where queued players wait. Tried in
 #                     declaration order; the first one with available capacity
 #                     (or the first reachable unmanaged server) is used.
+#   bypass-permission Optional. Players with this permission skip the queue and
+#                     connect to the target server directly. Omit or leave blank
+#                     to disable.
 #
 # Example:
 #   servers:
@@ -15,5 +18,19 @@
 #       fallbacks:
 #         - lobby
 #         - lobby-overflow
+#       bypass-permission: technoqueue.bypass.main
 
 servers: {}
+
+# Permission-based queue weights. Each entry pairs a permission node with a
+# weight; players holding the permission receive that weight when they enter a
+# queue (higher weight = higher priority). If a player holds multiple matching
+# permissions, behavior is determined by the queue implementation.
+#
+# Example:
+#   permissions:
+#     - permission: technoqueue.priority.vip
+#       weight: 10
+#     - permission: technoqueue.priority.vip-plus
+#       weight: 25
+permissions: []

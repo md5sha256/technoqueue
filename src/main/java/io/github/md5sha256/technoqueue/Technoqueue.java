@@ -11,6 +11,9 @@ import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
+import io.github.md5sha256.technoqueue.config.ServerEntry;
+import io.github.md5sha256.technoqueue.config.ServerQueueData;
+import io.github.md5sha256.technoqueue.config.Settings;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.jetbrains.annotations.NotNull;
@@ -87,7 +90,8 @@ public class Technoqueue {
                     target.get(),
                     fallbacks,
                     entry.targetCapacity(),
-                    entry.maxQueueSize()
+                    entry.maxQueueSize(),
+                    entry.bypassPermission()
             );
             queueManager.register(data);
             scheduleDrain(data);
@@ -109,6 +113,9 @@ public class Technoqueue {
         }
         ServerQueueData data = dataOpt.get();
         Player player = event.getPlayer();
+        if (hasBypass(player, data)) {
+            return;
+        }
         if (data.queue().isEmpty() && data.hasCapacity()) {
             return;
         }
@@ -140,6 +147,9 @@ public class Technoqueue {
         // server, this connect is the queue routing them in — let it through.
         Optional<String> queued = queueManager.queuedServer(player.getUniqueId());
         if (queued.isPresent() && queued.get().equals(serverName)) {
+            return;
+        }
+        if (hasBypass(player, data)) {
             return;
         }
         if (data.queue().isEmpty() && data.hasCapacity()) {
@@ -185,6 +195,11 @@ public class Technoqueue {
     @Subscribe
     public void onDisconnect(DisconnectEvent event) {
         queueManager.dequeue(event.getPlayer().getUniqueId());
+    }
+
+    private static boolean hasBypass(@NotNull Player player, @NotNull ServerQueueData data) {
+        String permission = data.bypassPermission();
+        return permission != null && player.hasPermission(permission);
     }
 
     // Returns the next fallback in declaration order after the one named
