@@ -1,0 +1,9 @@
+# Dev config for Technoqueue inside docker compose.
+# limbo-a stands in for the real "busy" target server, limbo-b stands in for the
+# fallback/limbo where queued players wait. Target capacity is set to 1 so the
+# second connecting client is forced into the queue.
+servers:
+  limbo-a:
+    target-capacity: 1
+    max-queue-size: 10
+    fallback: limbo-b

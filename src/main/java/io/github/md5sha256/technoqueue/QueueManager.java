@@ -35,12 +35,12 @@ public class QueueManager {
         }
     }
 
-    public boolean enqueue(@NotNull UUID player, @NotNull String serverName, int weight) {
+    public @NotNull EnqueueResult enqueue(@NotNull UUID player, @NotNull String serverName, int weight) {
         lock.lock();
         try {
             ServerQueueData target = queueDataMap.get(serverName);
             if (target == null) {
-                return false;
+                return EnqueueResult.UNKNOWN_SERVER;
             }
             String currentLocation = playerQueueLocation.get(player);
             if (currentLocation != null && !currentLocation.equals(serverName)) {
@@ -52,12 +52,14 @@ public class QueueManager {
             boolean enqueued = target.queue().enqueuePlayer(player, weight);
             if (enqueued) {
                 playerQueueLocation.put(player, serverName);
-            } else if (currentLocation != null && !currentLocation.equals(serverName)) {
+                return EnqueueResult.SUCCESS;
+            }
+            if (currentLocation != null && !currentLocation.equals(serverName)) {
                 // We removed the player from their previous queue but couldn't
                 // place them in the new one; clear the stale tracking entry.
                 playerQueueLocation.remove(player);
             }
-            return enqueued;
+            return EnqueueResult.QUEUE_FULL;
         } finally {
             lock.unlock();
         }

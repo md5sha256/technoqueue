@@ -1,0 +1,57 @@
+services:
+  proxy:
+    build:
+      context: .
+      dockerfile: docker/proxy/Dockerfile
+    image: technoqueue-proxy:dev
+    container_name: technoqueue-proxy
+    restart: unless-stopped
+    environment:
+      TYPE: VELOCITY
+      VELOCITY_VERSION: latest
+      MEMORY: 512m
+    volumes:
+      - ./docker/velocity/velocity.toml:/server/velocity.toml
+      - ./docker/velocity/forwarding.secret:/server/forwarding.secret
+      - ./docker/velocity/plugins/technoqueue/settings.yml:/server/plugins/technoqueue/settings.yml
+      - proxy-data:/data
+    ports:
+      - "25565:25577"
+    depends_on:
+      - limbo-a
+      - limbo-b
+    networks:
+      - technoqueue
+
+  limbo-a:
+    image: ghcr.io/quozul/picolimbo:latest
+    container_name: technoqueue-limbo-a
+    restart: unless-stopped
+    environment:
+      FORWARDING_SECRET: ${FORWARDING_SECRET:?FORWARDING_SECRET must be set in .env}
+    volumes:
+      - ./docker/limbo-a.toml:/usr/src/app/server.toml:ro
+    ports:
+      - "25566:25565"
+    networks:
+      - technoqueue
+
+  limbo-b:
+    image: ghcr.io/quozul/picolimbo:latest
+    container_name: technoqueue-limbo-b
+    restart: unless-stopped
+    environment:
+      FORWARDING_SECRET: ${FORWARDING_SECRET:?FORWARDING_SECRET must be set in .env}
+    volumes:
+      - ./docker/limbo-b.toml:/usr/src/app/server.toml:ro
+    ports:
+      - "25567:25565"
+    networks:
+      - technoqueue
+
+volumes:
+  proxy-data:
+
+networks:
+  technoqueue:
+    driver: bridge

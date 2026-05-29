@@ -101,7 +101,7 @@ public class Technoqueue {
         if (data.queue().isEmpty() && data.hasCapacity()) {
             return;
         }
-        if (queueManager.enqueue(player.getUniqueId(), serverName, 0)) {
+        if (queueManager.enqueue(player.getUniqueId(), serverName, 0) == EnqueueResult.SUCCESS) {
             event.setInitialServer(data.fallbackServer());
             player.sendMessage(Component.text(
                     "Server '" + serverName + "' is full — you've been placed in the queue.",
@@ -133,7 +133,7 @@ public class Technoqueue {
         if (data.queue().isEmpty() && data.hasCapacity()) {
             return;
         }
-        if (queueManager.enqueue(player.getUniqueId(), serverName, 0)) {
+        if (queueManager.enqueue(player.getUniqueId(), serverName, 0) == EnqueueResult.SUCCESS) {
             event.setResult(ServerPreConnectEvent.ServerResult.allowed(data.fallbackServer()));
             player.sendMessage(Component.text(
                     "Server '" + serverName + "' is full — you've been placed in the queue.",
@@ -153,7 +153,7 @@ public class Technoqueue {
 
     private static @NotNull Settings loadConfig(@NotNull Path dataDir) throws IOException {
         Files.createDirectories(dataDir);
-        Path file = dataDir.resolve("technoqueue.yml");
+        Path file = dataDir.resolve("settings.yml");
         if (!Files.exists(file)) {
             writeDefaultConfig(file);
         }
@@ -170,7 +170,7 @@ public class Technoqueue {
     }
 
     private static void writeDefaultConfig(@NotNull Path file) throws IOException {
-        try (InputStream in = Technoqueue.class.getResourceAsStream("/technoqueue.yml")) {
+        try (InputStream in = Technoqueue.class.getResourceAsStream("/settings.yml")) {
             if (in == null) {
                 throw new IOException("Default technoqueue.yml resource missing from plugin jar.");
             }

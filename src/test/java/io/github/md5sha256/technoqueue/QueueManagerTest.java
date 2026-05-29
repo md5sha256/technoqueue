@@ -6,7 +6,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class QueueManagerTest {
@@ -47,7 +46,7 @@ class QueueManagerTest {
     @Test
     void enqueueRejectsUnknownServer() {
         QueueManager manager = new QueueManager();
-        assertFalse(manager.enqueue(UUID.randomUUID(), "missing", 0));
+        assertEquals(EnqueueResult.UNKNOWN_SERVER, manager.enqueue(UUID.randomUUID(), "missing", 0));
     }
 
     @Test
@@ -57,7 +56,7 @@ class QueueManagerTest {
         manager.register(data);
         UUID player = UUID.randomUUID();
 
-        assertTrue(manager.enqueue(player, "main", 0));
+        assertEquals(EnqueueResult.SUCCESS, manager.enqueue(player, "main", 0));
         assertEquals(1, data.queue().size());
         assertEquals(Optional.of("main"), manager.queuedServer(player));
     }
@@ -70,8 +69,8 @@ class QueueManagerTest {
         UUID first = UUID.randomUUID();
         UUID second = UUID.randomUUID();
 
-        assertTrue(manager.enqueue(first, "main", 0));
-        assertFalse(manager.enqueue(second, "main", 0));
+        assertEquals(EnqueueResult.SUCCESS, manager.enqueue(first, "main", 0));
+        assertEquals(EnqueueResult.QUEUE_FULL, manager.enqueue(second, "main", 0));
 
         assertTrue(manager.queuedServer(second).isEmpty());
         assertEquals(Optional.of("main"), manager.queuedServer(first));
@@ -86,10 +85,10 @@ class QueueManagerTest {
         manager.register(b);
         UUID player = UUID.randomUUID();
 
-        assertTrue(manager.enqueue(player, "a", 0));
+        assertEquals(EnqueueResult.SUCCESS, manager.enqueue(player, "a", 0));
         assertEquals(1, a.queue().size());
 
-        assertTrue(manager.enqueue(player, "b", 0));
+        assertEquals(EnqueueResult.SUCCESS, manager.enqueue(player, "b", 0));
         assertEquals(0, a.queue().size());
         assertEquals(1, b.queue().size());
         assertEquals(Optional.of("b"), manager.queuedServer(player));
@@ -110,7 +109,7 @@ class QueueManagerTest {
 
         // Move into a server with no room left; player should be removed from "a"
         // and end up tracked in neither queue.
-        assertFalse(manager.enqueue(player, "full", 0));
+        assertEquals(EnqueueResult.QUEUE_FULL, manager.enqueue(player, "full", 0));
         assertEquals(0, a.queue().size());
         assertEquals(1, full.queue().size());
         assertTrue(manager.queuedServer(player).isEmpty());
@@ -123,8 +122,8 @@ class QueueManagerTest {
         manager.register(data);
         UUID player = UUID.randomUUID();
 
-        assertTrue(manager.enqueue(player, "main", 0));
-        assertTrue(manager.enqueue(player, "main", 5));
+        assertEquals(EnqueueResult.SUCCESS, manager.enqueue(player, "main", 0));
+        assertEquals(EnqueueResult.SUCCESS, manager.enqueue(player, "main", 5));
         assertEquals(1, data.queue().size());
         assertEquals(Optional.of("main"), manager.queuedServer(player));
 
