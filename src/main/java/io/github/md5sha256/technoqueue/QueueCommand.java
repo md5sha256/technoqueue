@@ -3,14 +3,13 @@ package io.github.md5sha256.technoqueue;
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.command.SimpleCommand;
 import com.velocitypowered.api.proxy.Player;
-import io.github.md5sha256.technoqueue.config.ServerQueueData;
 import io.github.md5sha256.technoqueue.localization.MessageContainer;
+import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 public class QueueCommand implements SimpleCommand {
 
@@ -69,34 +68,19 @@ public class QueueCommand implements SimpleCommand {
             source.sendMessage(messages.prefixedTemplate("queue.status-not-player"));
             return;
         }
-        Optional<String> queued = queueManager.queuedServer(player.getUniqueId());
-        if (queued.isEmpty()) {
+        Optional<QueueManager.QueueStatus> status = queueManager.status(player.getUniqueId());
+        if (status.isEmpty()) {
             player.sendMessage(messages.prefixedTemplate("queue.status-not-queued"));
             return;
         }
-        String serverName = queued.get();
-        Optional<ServerQueueData> dataOpt = queueManager.get(serverName);
-        if (dataOpt.isEmpty()) {
-            player.sendMessage(messages.prefixedTemplate("queue.status-not-queued"));
-            return;
-        }
-        ServerQueueData data = dataOpt.get();
-        QueueEntry[] entries = data.queue().queuePositions();
-        UUID uuid = player.getUniqueId();
-        int position = -1;
-        for (int i = 0; i < entries.length; i++) {
-            if (entries[i].player().equals(uuid)) {
-                position = i + 1;
-                break;
-            }
-        }
-        if (position < 0) {
-            player.sendMessage(messages.prefixedTemplate("queue.status-not-queued"));
-            return;
-        }
-        player.sendMessage(messages.prefixedTemplate("queue.status",
-                Placeholder.unparsed("server", serverName),
-                Placeholder.unparsed("position", Integer.toString(position)),
-                Placeholder.unparsed("size", Integer.toString(entries.length))));
+        player.sendMessage(statusMessage(messages, status.get()));
+    }
+
+    public static @NotNull Component statusMessage(@NotNull MessageContainer messages,
+                                                   @NotNull QueueManager.QueueStatus status) {
+        return messages.prefixedTemplate("queue.status",
+                Placeholder.unparsed("server", status.serverName()),
+                Placeholder.unparsed("position", Integer.toString(status.position())),
+                Placeholder.unparsed("size", Integer.toString(status.size())));
     }
 }

@@ -66,6 +66,8 @@ public class QueueListener {
             event.setInitialServer(fallback.get());
             player.sendMessage(messages.prefixedTemplate("queue.joined",
                     Placeholder.unparsed("server", serverName)));
+            queueManager.status(player.getUniqueId())
+                    .ifPresent(status -> player.sendMessage(QueueCommand.statusMessage(messages, status)));
         } else {
             event.setInitialServer(null);
             player.disconnect(messages.template("queue.full-disconnect",
@@ -114,6 +116,8 @@ public class QueueListener {
             }
             player.sendMessage(messages.prefixedTemplate("queue.joined",
                     Placeholder.unparsed("server", serverName)));
+            queueManager.status(player.getUniqueId())
+                    .ifPresent(status -> player.sendMessage(QueueCommand.statusMessage(messages, status)));
         } else {
             event.setResult(ServerPreConnectEvent.ServerResult.denied());
             player.sendMessage(messages.prefixedTemplate("queue.full-denied",

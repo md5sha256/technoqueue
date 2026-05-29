@@ -12,8 +12,6 @@ queue:
   full-disconnect: "<red>The queue for '<server>' is full. Please try again later.</red>"
   # <server> -- the target server name
   full-denied: "<red>The queue for '<server>' is full.</red>"
-  # <server>, <position>, <size> -- shown in the action bar at a fixed cadence
-  action-bar: "<gray>Queued for <yellow><server></yellow>: <gold><position></gold>/<gold><size></gold></gray>"
   usage: "<gray>Usage: /queue <leave|status></gray>"
   # <server> -- the queue the player left
   leave-success: "<green>You have left the queue for '<server>'.</green>"

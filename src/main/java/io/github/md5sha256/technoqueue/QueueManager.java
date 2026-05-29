@@ -138,4 +138,30 @@ public class QueueManager {
             lock.unlock();
         }
     }
+
+    public @NotNull Optional<QueueStatus> status(@NotNull UUID player) {
+        lock.lock();
+        try {
+            String serverName = playerQueueLocation.get(player);
+            if (serverName == null) {
+                return Optional.empty();
+            }
+            ServerQueueData data = queueDataMap.get(serverName);
+            if (data == null) {
+                return Optional.empty();
+            }
+            QueueEntry[] entries = data.queue().queuePositions();
+            for (int i = 0; i < entries.length; i++) {
+                if (entries[i].player().equals(player)) {
+                    return Optional.of(new QueueStatus(serverName, i + 1, entries.length));
+                }
+            }
+            return Optional.empty();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public record QueueStatus(@NotNull String serverName, int position, int size) {
+    }
 }

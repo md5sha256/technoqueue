@@ -11,20 +11,17 @@ import java.util.Map;
 @ConfigSerializable
 public record Settings(@NotNull @Setting("servers") @Required Map<String, ServerEntry> servers,
                        @NotNull @Setting("permissions") List<PermissionWeight> permissions,
-                       @Setting("drain-interval-seconds") long drainIntervalSeconds,
-                       @Setting("action-bar-interval-seconds") long actionBarIntervalSeconds) {
+                       @Setting("drain-interval-seconds") long drainIntervalSeconds) {
 
     public Settings() {
-        this(Map.of(), List.of(), 10L, 2L);
+        this(Map.of(), List.of(), 10L);
     }
 
     public Settings(@NotNull Map<String, ServerEntry> servers,
                     @NotNull List<PermissionWeight> permissions,
-                    long drainIntervalSeconds,
-                    long actionBarIntervalSeconds) {
+                    long drainIntervalSeconds) {
         this.servers = Map.copyOf(servers);
         this.permissions = List.copyOf(permissions);
         this.drainIntervalSeconds = drainIntervalSeconds;
-        this.actionBarIntervalSeconds = actionBarIntervalSeconds;
     }
 }
