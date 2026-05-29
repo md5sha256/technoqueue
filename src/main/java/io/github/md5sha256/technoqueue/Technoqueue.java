@@ -1,6 +1,8 @@
 package io.github.md5sha256.technoqueue;
 
 import com.google.inject.Inject;
+import com.velocitypowered.api.command.CommandManager;
+import com.velocitypowered.api.command.CommandMeta;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
@@ -119,6 +121,16 @@ public class Technoqueue {
         }
         server.getEventManager()
                 .register(this, new QueueListener(queueManager, messages, luckPerms, permissionWeights));
+        registerCommands();
+    }
+
+    private void registerCommands() {
+        CommandManager commandManager = server.getCommandManager();
+        CommandMeta meta = commandManager.metaBuilder("leavequeue")
+                .aliases("queueleave")
+                .plugin(this)
+                .build();
+        commandManager.register(meta, new LeaveQueueCommand(queueManager, messages));
     }
 
     private static @NotNull Settings loadConfig(@NotNull Path dataDir) throws IOException {
