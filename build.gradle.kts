@@ -24,6 +24,7 @@ dependencies {
 
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(21)
+    withSourcesJar()
 }
 
 tasks {
