@@ -18,34 +18,62 @@ services:
     ports:
       - "25565:25577"
     depends_on:
-      - limbo-a
-      - limbo-b
+      - limbo-target-1
+      - limbo-target-2
+      - limbo-queue-1
+      - limbo-queue-2
     networks:
       - technoqueue
 
-  limbo-a:
+  limbo-target-1:
     image: ghcr.io/quozul/picolimbo:latest
-    container_name: technoqueue-limbo-a
+    container_name: technoqueue-limbo-target-1
     restart: unless-stopped
     environment:
       FORWARDING_SECRET: ${FORWARDING_SECRET:?FORWARDING_SECRET must be set in .env}
     volumes:
-      - ./docker/limbo-a.toml:/usr/src/app/server.toml:ro
+      - ./docker/limbo-target-1.toml:/usr/src/app/server.toml:ro
     ports:
       - "25566:25565"
     networks:
       - technoqueue
 
-  limbo-b:
+  limbo-target-2:
     image: ghcr.io/quozul/picolimbo:latest
-    container_name: technoqueue-limbo-b
+    container_name: technoqueue-limbo-target-2
     restart: unless-stopped
     environment:
       FORWARDING_SECRET: ${FORWARDING_SECRET:?FORWARDING_SECRET must be set in .env}
     volumes:
-      - ./docker/limbo-b.toml:/usr/src/app/server.toml:ro
+      - ./docker/limbo-target-2.toml:/usr/src/app/server.toml:ro
     ports:
       - "25567:25565"
+    networks:
+      - technoqueue
+
+  limbo-queue-1:
+    image: ghcr.io/quozul/picolimbo:latest
+    container_name: technoqueue-limbo-queue-1
+    restart: unless-stopped
+    environment:
+      FORWARDING_SECRET: ${FORWARDING_SECRET:?FORWARDING_SECRET must be set in .env}
+    volumes:
+      - ./docker/limbo-queue-1.toml:/usr/src/app/server.toml:ro
+    ports:
+      - "25568:25565"
+    networks:
+      - technoqueue
+
+  limbo-queue-2:
+    image: ghcr.io/quozul/picolimbo:latest
+    container_name: technoqueue-limbo-queue-2
+    restart: unless-stopped
+    environment:
+      FORWARDING_SECRET: ${FORWARDING_SECRET:?FORWARDING_SECRET must be set in .env}
+    volumes:
+      - ./docker/limbo-queue-2.toml:/usr/src/app/server.toml:ro
+    ports:
+      - "25569:25565"
     networks:
       - technoqueue
 

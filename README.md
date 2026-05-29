@@ -20,20 +20,29 @@ compose.yaml             Three-service dev stack (proxy + 2 limbos)
 ## Local dev stack
 
 The compose stack runs a Velocity proxy with the plugin pre-built into the
-image, plus two PicoLimbo backends:
+image, plus three PicoLimbo backends:
 
-| Service   | Role                          | Host port | Container port |
-|-----------|-------------------------------|-----------|----------------|
-| `proxy`   | Velocity + Technoqueue plugin | 25565     | 25565          |
-| `limbo-a` | Mock target ("busy") server   | 25566     | 25565          |
-| `limbo-b` | Mock fallback / limbo server  | 25567     | 25565          |
+| Service          | Role                                       | Host port | Container port |
+|------------------|--------------------------------------------|-----------|----------------|
+| `proxy`          | Velocity + Technoqueue plugin              | 25565     | 25577          |
+| `limbo-target-1` | Mock target server, **queue-managed**      | 25566     | 25565          |
+| `limbo-target-2` | Mock target server, **no queue**           | 25567     | 25565          |
+| `limbo-queue-1`  | Mock waiting-room (fallback for the queue) | 25568     | 25565          |
+| `limbo-queue-2`  | Mock waiting-room (second fallback)        | 25569     | 25565          |
 
-The dev `technoqueue.yml` registers `limbo-a` as the queue-managed server with
-`limbo-b` as its fallback, so:
+The dev `settings.yml` registers only `limbo-target-1` as queue-managed, with
+`limbo-queue-1` as its fallback. `limbo-target-2` is registered with Velocity
+but has no entry in `settings.yml`, so connections to it always pass through
+directly. `limbo-queue-2` is unused by default — wire it up as the `fallback`
+for a second queue entry to exercise multi-queue behavior.
 
-1. Player 1 connects to `localhost:25565` → routed to `limbo-a`.
-2. Player 2 connects → queue is exercised, player lands on `limbo-b` and is
-   promoted to `limbo-a` on the next drain tick once Player 1 leaves.
+1. Player 1 connects to `localhost:25565` → routed to `limbo-target-1` (via
+   Velocity's `try` list).
+2. Player 2 connects → `limbo-target-1` is at capacity, player is queued and
+   lands on `limbo-queue-1`. Once Player 1 disconnects, the next drain tick
+   promotes Player 2 into `limbo-target-1`.
+3. From inside the proxy, `/server limbo-target-2` switches directly — no
+   queue, no capacity check.
 
 ### One-time setup
 

@@ -15,9 +15,11 @@ enable-player-address-logging = true
 forced-hosts = {}
 
 [servers]
-	limbo-a = "limbo-a:25565"
-	limbo-b = "limbo-b:25565"
-	try = ["limbo-a"]
+	limbo-target-1 = "limbo-target-1:25565"
+	limbo-target-2 = "limbo-target-2:25565"
+	limbo-queue-1 = "limbo-queue-1:25565"
+	limbo-queue-2 = "limbo-queue-2:25565"
+	try = ["limbo-target-1"]
 
 [advanced]
 	compression-threshold = 256
