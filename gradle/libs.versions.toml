@@ -1,10 +1,12 @@
 [versions]
 velocity-api = "3.5.0-SNAPSHOT"
+configurate = "4.1.2"
 
 run-task = "3.0.2"
 
 [libraries]
 velocity-api = { module = "com.velocitypowered:velocity-api", version.ref = "velocity-api" }
+configurate-yaml = { module = "org.spongepowered:configurate-yaml", version.ref = "configurate" }
 
 [plugins]
 run-velocity = { id = "xyz.jpenilla.run-velocity", version.ref = "run-task" }

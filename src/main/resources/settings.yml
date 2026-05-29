@@ -1,0 +1,15 @@
+# Technoqueue configuration.
+#
+# Each entry under `servers` defines a queue-managed backend:
+#   target-capacity   Max concurrent players on the backend before queueing kicks in.
+#   max-queue-size    Max queued players; further connections are rejected.
+#   fallback          Server name where queued players wait.
+#
+# Example:
+#   servers:
+#     main:
+#       target-capacity: 200
+#       max-queue-size: 500
+#       fallback: lobby
+
+servers: {}
