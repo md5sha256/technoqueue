@@ -126,11 +126,10 @@ public class Technoqueue {
 
     private void registerCommands() {
         CommandManager commandManager = server.getCommandManager();
-        CommandMeta meta = commandManager.metaBuilder("leavequeue")
-                .aliases("queueleave")
+        CommandMeta meta = commandManager.metaBuilder("queue")
                 .plugin(this)
                 .build();
-        commandManager.register(meta, new LeaveQueueCommand(queueManager, messages));
+        commandManager.register(meta, new QueueCommand(queueManager, messages));
     }
 
     private static @NotNull Settings loadConfig(@NotNull Path dataDir) throws IOException {

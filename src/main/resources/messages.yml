@@ -14,7 +14,12 @@ queue:
   full-denied: "<red>The queue for '<server>' is full.</red>"
   # <server>, <position>, <size> -- shown in the action bar at a fixed cadence
   action-bar: "<gray>Queued for <yellow><server></yellow>: <gold><position></gold>/<gold><size></gold></gray>"
+  usage: "<gray>Usage: /queue <leave|status></gray>"
   # <server> -- the queue the player left
   leave-success: "<green>You have left the queue for '<server>'.</green>"
   leave-not-queued: "<red>You are not currently in a queue.</red>"
   leave-not-player: "<red>Only players can leave a queue.</red>"
+  # <server>, <position>, <size> -- the player's current queue position
+  status: "<gray>Queued for <yellow><server></yellow>: position <gold><position></gold>/<gold><size></gold>.</gray>"
+  status-not-queued: "<red>You are not currently in a queue.</red>"
+  status-not-player: "<red>Only players can view queue status.</red>"
