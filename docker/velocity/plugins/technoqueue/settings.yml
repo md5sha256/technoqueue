@@ -14,5 +14,11 @@ servers:
       - limbo-queue-2
     bypass-permission: limbo.bypass
 
+permissions:
+  - permission: limbo.priority.lower
+    weight: 10
+  - permission: limbo.priority.higher
+    weight: 25
+
 drain-interval-seconds: 10
 action-bar-interval-seconds: 2
