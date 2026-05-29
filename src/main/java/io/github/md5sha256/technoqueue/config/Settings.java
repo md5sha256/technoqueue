@@ -9,10 +9,10 @@ import java.util.List;
 import java.util.Map;
 
 @ConfigSerializable
-public record Settings(@NotNull @Setting @Required Map<String, ServerEntry> servers,
-                       @NotNull @Setting List<PermissionWeight> permissions,
-                       @Setting long drainIntervalSeconds,
-                       @Setting long actionBarIntervalSeconds) {
+public record Settings(@NotNull @Setting("servers") @Required Map<String, ServerEntry> servers,
+                       @NotNull @Setting("permissions") List<PermissionWeight> permissions,
+                       @Setting("drain-interval-seconds") long drainIntervalSeconds,
+                       @Setting("action-bar-interval-seconds") long actionBarIntervalSeconds) {
 
     public Settings() {
         this(Map.of(), List.of(), 10L, 2L);

@@ -9,10 +9,10 @@ import org.spongepowered.configurate.objectmapping.meta.Setting;
 import java.util.List;
 
 @ConfigSerializable
-public record ServerEntry(@Setting @Required int targetCapacity,
-                          @Setting @Required int maxQueueSize,
-                          @Setting @NotNull List<String> fallbacks,
-                          @Setting @Nullable String bypassPermission) {
+public record ServerEntry(@Setting("target-capacity") @Required int targetCapacity,
+                          @Setting("max-queue-size") @Required int maxQueueSize,
+                          @Setting("fallbacks") @NotNull List<String> fallbacks,
+                          @Setting("bypass-permission") @Nullable String bypassPermission) {
 
     public ServerEntry() {
         this(200, 500, List.of(), null);

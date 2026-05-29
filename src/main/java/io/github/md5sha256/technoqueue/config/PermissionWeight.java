@@ -7,7 +7,7 @@ import org.spongepowered.configurate.objectmapping.meta.Setting;
 
 @ConfigSerializable
 public record PermissionWeight(@Setting("permission") @Required @NotNull String permission,
-                               @Setting @Required int weight) {
+                               @Setting("weight") @Required int weight) {
 
     public PermissionWeight() {
         this("", 0);
