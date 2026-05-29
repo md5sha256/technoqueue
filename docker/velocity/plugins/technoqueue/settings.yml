@@ -9,4 +9,6 @@ servers:
   limbo-target-1:
     target-capacity: 1
     max-queue-size: 10
-    fallback: limbo-queue-1
+    fallbacks:
+      - limbo-queue-1
+      - limbo-queue-2
