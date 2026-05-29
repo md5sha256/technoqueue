@@ -6,9 +6,11 @@ services:
     image: technoqueue-proxy:dev
     container_name: technoqueue-proxy
     restart: unless-stopped
+    stdin_open: true
+    tty: true
     environment:
       TYPE: VELOCITY
-      VELOCITY_VERSION: latest
+      VELOCITY_VERSION: 3.4.0-SNAPSHOT
       MEMORY: 512m
     volumes:
       - ./docker/velocity/velocity.toml:/server/velocity.toml
