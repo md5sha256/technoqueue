@@ -12,3 +12,6 @@ servers:
     fallbacks:
       - limbo-queue-1
       - limbo-queue-2
+
+drain-interval-seconds: 10
+action-bar-interval-seconds: 5
