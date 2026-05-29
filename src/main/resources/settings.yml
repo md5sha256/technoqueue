@@ -34,3 +34,7 @@ servers: {}
 #     - permission: technoqueue.priority.vip-plus
 #       weight: 25
 permissions: []
+
+# How often (in seconds) each queue tries to promote waiting players onto its
+# target server.
+drain-interval-seconds: 10

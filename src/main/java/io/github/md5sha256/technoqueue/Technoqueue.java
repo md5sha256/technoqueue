@@ -35,8 +35,6 @@ import java.util.UUID;
 
 public class Technoqueue {
 
-    private static final Duration DRAIN_INTERVAL = Duration.ofSeconds(10);
-
     private final Logger logger;
     private final ProxyServer server;
     private final Path dataDir;
@@ -60,6 +58,7 @@ public class Technoqueue {
             logger.error("Failed to load technoqueue config; queues disabled.", e);
             return;
         }
+        Duration drainInterval = Duration.ofSeconds(config.drainIntervalSeconds());
         for (Map.Entry<String, ServerEntry> mapEntry : config.servers().entrySet()) {
             String name = mapEntry.getKey();
             ServerEntry entry = mapEntry.getValue();
@@ -94,7 +93,7 @@ public class Technoqueue {
                     entry.bypassPermission()
             );
             queueManager.register(data);
-            scheduleDrain(data);
+            scheduleDrain(data, drainInterval);
             logger.info("Registered queue for '{}' (capacity={}, maxQueue={}, fallbacks={}).",
                     name, entry.targetCapacity(), entry.maxQueueSize(), entry.fallbacks());
         }
@@ -284,11 +283,11 @@ public class Technoqueue {
         }
     }
 
-    private void scheduleDrain(@NotNull ServerQueueData data) {
+    private void scheduleDrain(@NotNull ServerQueueData data, @NotNull Duration interval) {
         server.getScheduler()
                 .buildTask(this, () -> drain(data))
-                .repeat(DRAIN_INTERVAL)
-                .delay(DRAIN_INTERVAL)
+                .repeat(interval)
+                .delay(interval)
                 .schedule();
     }
 
