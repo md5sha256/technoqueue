@@ -11,6 +11,9 @@ RUN --mount=type=cache,target=/root/.gradle \
 
 # Stage 2: layer the jar onto itzg's Velocity image. Pull LuckPerms (Velocity)
 # from its metadata endpoint so technoqueue's hard dependency is satisfied.
+# Copy only the plugin jar by exact name — build/libs also contains a
+# technoqueue-<version>-sources.jar (from withSourcesJar()), and a wildcard
+# would deploy both, making Velocity reject the duplicate plugin ID.
 FROM itzg/mc-proxy:latest
 ADD https://metadata.luckperms.net/data/downloads /tmp/lp-downloads.json
 RUN mkdir -p /server/plugins \
@@ -18,4 +21,4 @@ RUN mkdir -p /server/plugins \
     && echo "Fetching LuckPerms from $LP_URL" \
     && curl -fsSL "$LP_URL" -o /server/plugins/LuckPerms-Velocity.jar \
     && rm -f /tmp/lp-downloads.json
-COPY --from=builder /app/build/libs/technoqueue-*.jar /server/plugins/
+COPY --from=builder /app/build/libs/technoqueue-1.0.0.jar /server/plugins/

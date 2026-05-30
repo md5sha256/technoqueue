@@ -17,6 +17,7 @@ import io.github.md5sha256.technoqueue.config.Settings;
 import io.github.md5sha256.technoqueue.localization.MessageContainer;
 import io.github.md5sha256.technoqueue.localization.MessageDefinitions;
 import io.github.md5sha256.technoqueue.localization.MessagesYamlLoader;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.luckperms.api.LuckPerms;
 import net.luckperms.api.LuckPermsProvider;
 import org.jetbrains.annotations.NotNull;
@@ -73,6 +74,7 @@ public class Technoqueue {
         sorted.sort(Comparator.comparingInt(PermissionWeight::weight).reversed());
         List<PermissionWeight> permissionWeights = List.copyOf(sorted);
         Duration drainInterval = Duration.ofSeconds(config.drainIntervalSeconds());
+        Duration actionBarInterval = Duration.ofSeconds(config.actionBarIntervalSeconds());
         for (Map.Entry<String, ServerSetting> mapEntry : config.servers().entrySet()) {
             String name = mapEntry.getKey();
             ServerSetting entry = mapEntry.getValue();
@@ -117,6 +119,11 @@ public class Technoqueue {
             );
             queueManager.register(data);
             scheduleDrain(data, drainInterval);
+            if (entry.showActionBar()
+                    && !actionBarInterval.isZero()
+                    && !actionBarInterval.isNegative()) {
+                scheduleActionBar(data, actionBarInterval);
+            }
             logger.info("Registered queue for '{}' (capacity={}, maxQueue={}, fallbacks={}).",
                     name, queueSetting.targetCapacity(), queueSetting.maxQueueSize(),
                     queueSetting.fallbacks());
@@ -185,6 +192,34 @@ public class Technoqueue {
                 .repeat(interval)
                 .delay(interval)
                 .schedule();
+    }
+
+    private void scheduleActionBar(@NotNull ServerQueueData data, @NotNull Duration interval) {
+        server.getScheduler()
+                .buildTask(this, () -> sendActionBars(data))
+                .repeat(interval)
+                .delay(interval)
+                .schedule();
+    }
+
+    private void sendActionBars(@NotNull ServerQueueData data) {
+        QueueEntry[] entries = data.queue().queuePositions();
+        if (entries.length == 0) {
+            return;
+        }
+        int size = entries.length;
+        for (int i = 0; i < entries.length; i++) {
+            UUID uuid = entries[i].player();
+            Optional<Player> playerOpt = server.getPlayer(uuid);
+            if (playerOpt.isEmpty()) {
+                continue;
+            }
+            int position = i + 1;
+            playerOpt.get().sendActionBar(messages.template("queue.action-bar",
+                    Placeholder.unparsed("server", data.serverName()),
+                    Placeholder.unparsed("position", Integer.toString(position)),
+                    Placeholder.unparsed("size", Integer.toString(size))));
+        }
     }
 
     private void drain(@NotNull ServerQueueData data) {

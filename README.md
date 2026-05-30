@@ -108,7 +108,8 @@ the Velocity working directory. In the dev stack it's mounted from
 `docker/velocity/plugins/technoqueue/technoqueue.yml`.
 
 ```yaml
-drain-interval-seconds: 10   # how often each queue tries to promote its head
+drain-interval-seconds: 10        # how often each queue tries to promote its head
+action-bar-interval-seconds: 2    # global cadence of the queued-position action bar (0 = off)
 
 servers:
   <velocity-server-name>:
@@ -117,6 +118,7 @@ servers:
       max-queue-size: 500   # max queued players; further connections are rejected
       fallbacks:            # ordered list of servers where queued players wait
         - <velocity-server-name>
+    show-action-bar: true   # whether players queued for this server see the action bar
 
 permissions:
   - permission: technoqueue.priority.vip

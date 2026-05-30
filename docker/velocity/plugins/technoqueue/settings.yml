@@ -7,12 +7,18 @@
 # connecting client is forced into the queue.
 servers:
   limbo-target-1:
-    target-capacity: 1
-    max-queue-size: 10
-    fallbacks:
-      - limbo-queue-1
-      - limbo-queue-2
+    queue-settings:
+      target-capacity: 1
+      max-queue-size: 10
+      fallbacks:
+        - limbo-queue-1
+        - limbo-queue-2
     bypass-permission: limbo.bypass
+    show-action-bar: false
+  limbo-queue-1:
+      show-action-bar: true
+  limbo-queue-2:
+      show-action-bar: false
 
 permissions:
   - permission: limbo.priority.lower

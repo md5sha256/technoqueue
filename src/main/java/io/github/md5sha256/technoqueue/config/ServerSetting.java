@@ -7,9 +7,10 @@ import org.spongepowered.configurate.objectmapping.meta.Setting;
 @ConfigSerializable
 public record ServerSetting(
         @Setting("queue-settings") @Nullable ServerQueueSetting queueSetting,
-        @Setting("bypass-permission") @Nullable String bypassPermission
+        @Setting("bypass-permission") @Nullable String bypassPermission,
+        @Setting("show-action-bar") boolean showActionBar
 ) {
     public ServerSetting() {
-        this(new ServerQueueSetting(), null);
+        this(new ServerQueueSetting(), null, true);
     }
 }

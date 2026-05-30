@@ -10,6 +10,9 @@
 #   bypass-permission Optional. Players with this permission skip the queue and
 #                     connect to the target server directly. Omit or leave blank
 #                     to disable.
+#   show-action-bar   Whether players queued for this server receive a periodic
+#                     action-bar update with their position. Defaults to true.
+#                     The cadence is set globally by `action-bar-interval-seconds`.
 #
 # Example:
 #   servers:
@@ -21,6 +24,7 @@
 #           - lobby
 #           - lobby-overflow
 #       bypass-permission: technoqueue.bypass.main
+#       show-action-bar: true
 
 servers: {}
 
@@ -40,3 +44,9 @@ permissions: []
 # How often (in seconds) each queue tries to promote waiting players onto its
 # target server.
 drain-interval-seconds: 10
+
+# How often (in seconds) queued players receive an action-bar update with their
+# current position. Action bars fade after ~3 seconds client-side, so values
+# above 2 will produce visible flicker. Set to 0 to disable updates entirely;
+# otherwise enable/disable per server with `show-action-bar` under each entry.
+action-bar-interval-seconds: 2
