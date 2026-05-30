@@ -10,8 +10,9 @@ import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import io.github.md5sha256.technoqueue.config.PermissionWeight;
-import io.github.md5sha256.technoqueue.config.ServerEntry;
 import io.github.md5sha256.technoqueue.config.ServerQueueData;
+import io.github.md5sha256.technoqueue.config.ServerQueueSetting;
+import io.github.md5sha256.technoqueue.config.ServerSetting;
 import io.github.md5sha256.technoqueue.config.Settings;
 import io.github.md5sha256.technoqueue.localization.MessageContainer;
 import io.github.md5sha256.technoqueue.localization.MessageDefinitions;
@@ -72,10 +73,15 @@ public class Technoqueue {
         sorted.sort(Comparator.comparingInt(PermissionWeight::weight).reversed());
         List<PermissionWeight> permissionWeights = List.copyOf(sorted);
         Duration drainInterval = Duration.ofSeconds(config.drainIntervalSeconds());
-        for (Map.Entry<String, ServerEntry> mapEntry : config.servers().entrySet()) {
+        for (Map.Entry<String, ServerSetting> mapEntry : config.servers().entrySet()) {
             String name = mapEntry.getKey();
-            ServerEntry entry = mapEntry.getValue();
-            if (entry.fallbacks().isEmpty()) {
+            ServerSetting entry = mapEntry.getValue();
+            ServerQueueSetting queueSetting = entry.queueSetting();
+            if (queueSetting == null) {
+                // No queue-settings means this server isn't queue-managed; leave it alone.
+                continue;
+            }
+            if (queueSetting.fallbacks().isEmpty()) {
                 logger.warn("Skipping queue for '{}' — 'fallbacks' is empty.", name);
                 continue;
             }
@@ -84,8 +90,8 @@ public class Technoqueue {
                 logger.warn("Skipping queue for '{}' — server not registered with proxy.", name);
                 continue;
             }
-            List<RegisteredServer> fallbacks = new ArrayList<>(entry.fallbacks().size());
-            for (String fallbackName : entry.fallbacks()) {
+            List<RegisteredServer> fallbacks = new ArrayList<>(queueSetting.fallbacks().size());
+            for (String fallbackName : queueSetting.fallbacks()) {
                 Optional<RegisteredServer> fallback = server.getServer(fallbackName);
                 if (fallback.isEmpty()) {
                     logger.warn("Queue for '{}' — fallback '{}' not registered; skipping it.",
@@ -105,14 +111,15 @@ public class Technoqueue {
                     name,
                     target.get(),
                     fallbacks,
-                    entry.targetCapacity(),
-                    entry.maxQueueSize(),
+                    queueSetting.targetCapacity(),
+                    queueSetting.maxQueueSize(),
                     entry.bypassPermission()
             );
             queueManager.register(data);
             scheduleDrain(data, drainInterval);
             logger.info("Registered queue for '{}' (capacity={}, maxQueue={}, fallbacks={}).",
-                    name, entry.targetCapacity(), entry.maxQueueSize(), entry.fallbacks());
+                    name, queueSetting.targetCapacity(), queueSetting.maxQueueSize(),
+                    queueSetting.fallbacks());
         }
         server.getEventManager()
                 .register(this, new QueueListener(queueManager, messages, luckPerms, permissionWeights));

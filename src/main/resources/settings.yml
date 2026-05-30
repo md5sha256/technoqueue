@@ -1,9 +1,10 @@
 # Technoqueue configuration.
 #
 # Each entry under `servers` defines a queue-managed backend:
-#   target-capacity   Max concurrent players on the backend before queueing kicks in.
-#   max-queue-size    Max queued players; further connections are rejected.
-#   fallbacks         Ordered list of servers where queued players wait. Tried in
+#   queue-settings    Queue sizing and fallback routing for this backend:
+#     target-capacity Max concurrent players on the backend before queueing kicks in.
+#     max-queue-size  Max queued players; further connections are rejected.
+#     fallbacks       Ordered list of servers where queued players wait. Tried in
 #                     declaration order; the first one with available capacity
 #                     (or the first reachable unmanaged server) is used.
 #   bypass-permission Optional. Players with this permission skip the queue and
@@ -13,11 +14,12 @@
 # Example:
 #   servers:
 #     main:
-#       target-capacity: 200
-#       max-queue-size: 500
-#       fallbacks:
-#         - lobby
-#         - lobby-overflow
+#       queue-settings:
+#         target-capacity: 200
+#         max-queue-size: 500
+#         fallbacks:
+#           - lobby
+#           - lobby-overflow
 #       bypass-permission: technoqueue.bypass.main
 
 servers: {}

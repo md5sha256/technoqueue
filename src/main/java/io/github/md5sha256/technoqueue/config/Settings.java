@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 @ConfigSerializable
-public record Settings(@NotNull @Setting("servers") @Required Map<String, ServerEntry> servers,
+public record Settings(@NotNull @Setting("servers") @Required Map<String, ServerSetting> servers,
                        @NotNull @Setting("permissions") List<PermissionWeight> permissions,
                        @Setting("drain-interval-seconds") long drainIntervalSeconds) {
 
@@ -17,7 +17,7 @@ public record Settings(@NotNull @Setting("servers") @Required Map<String, Server
         this(Map.of(), List.of(), 10L);
     }
 
-    public Settings(@NotNull Map<String, ServerEntry> servers,
+    public Settings(@NotNull Map<String, ServerSetting> servers,
                     @NotNull List<PermissionWeight> permissions,
                     long drainIntervalSeconds) {
         this.servers = Map.copyOf(servers);

@@ -112,9 +112,11 @@ drain-interval-seconds: 10   # how often each queue tries to promote its head
 
 servers:
   <velocity-server-name>:
-    target-capacity: 200    # max players on the backend before queueing kicks in
-    max-queue-size: 500     # max queued players; further connections are rejected
-    fallback: <velocity-server-name>   # where queued players wait
+    queue-settings:
+      target-capacity: 200  # max players on the backend before queueing kicks in
+      max-queue-size: 500   # max queued players; further connections are rejected
+      fallbacks:            # ordered list of servers where queued players wait
+        - <velocity-server-name>
 
 permissions:
   - permission: technoqueue.priority.vip
@@ -124,7 +126,7 @@ permissions:
 ```
 
 YAML keys are kebab-case — Configurate's default ObjectMapper derives them from
-the camelCase Java field names on `ServerEntry`.
+the camelCase Java field names on `ServerSetting` and `ServerQueueSetting`.
 
 Each entry under `servers` is keyed by a Velocity server name (i.e. a key from
 the `[servers]` table in `velocity.toml`).
