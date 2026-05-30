@@ -6,6 +6,7 @@ import com.velocitypowered.api.command.CommandMeta;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
+import com.velocitypowered.api.proxy.ConnectionRequestBuilder;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
@@ -18,9 +19,11 @@ import io.github.md5sha256.technoqueue.localization.MessageContainer;
 import io.github.md5sha256.technoqueue.localization.MessageDefinitions;
 import io.github.md5sha256.technoqueue.localization.MessagesYamlLoader;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.luckperms.api.LuckPerms;
 import net.luckperms.api.LuckPermsProvider;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.spongepowered.configurate.CommentedConfigurationNode;
 import org.spongepowered.configurate.ConfigurateException;
@@ -250,12 +253,29 @@ public class Technoqueue {
                     .whenComplete((result, err) -> {
                         queueManager.clearPromoting(uuid);
                         if (err != null || result == null || !result.isSuccessful()) {
-                            logger.debug("Failed to promote {} to {}; re-queueing.",
+                            logger.info("Failed to promote {} to {}; re-queueing ({}).",
                                     uuid,
-                                    data.serverName());
+                                    data.serverName(),
+                                    describePromotionFailure(result),
+                                    err);
                             queueManager.enqueue(uuid, data.serverName(), weight);
                         }
                     });
         }
+    }
+
+    // Summarizes why a connection request failed for logging. A null result
+    // means the request completed exceptionally (the throwable is logged
+    // separately); otherwise we surface the connection status and any reason
+    // component the backend supplied (e.g. a kick message during config).
+    private static @NotNull String describePromotionFailure(
+            @Nullable ConnectionRequestBuilder.Result result) {
+        if (result == null) {
+            return "connection error";
+        }
+        StringBuilder sb = new StringBuilder("status=").append(result.getStatus());
+        result.getReasonComponent().ifPresent(reason -> sb.append(", reason=")
+                .append(PlainTextComponentSerializer.plainText().serialize(reason)));
+        return sb.toString();
     }
 }
