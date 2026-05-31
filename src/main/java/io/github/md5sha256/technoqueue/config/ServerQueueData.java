@@ -57,8 +57,4 @@ public record ServerQueueData(String serverName, RegisteredServer targetServer,
     public @NotNull PlayerQueue queue() {
         return this.queue;
     }
-
-    public boolean hasCapacity() {
-        return this.targetServer.getPlayersConnected().size() < this.targetCapacity;
-    }
 }

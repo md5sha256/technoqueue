@@ -235,7 +235,7 @@ public class Technoqueue {
     }
 
     private void promoteFromQueue(@NotNull ServerQueueData data) {
-        while (data.hasCapacity()) {
+        while (queueManager.hasCapacityFor(data)) {
             Optional<QueueEntry> next = queueManager.beginPromotion(data.serverName());
             if (next.isEmpty()) {
                 return;

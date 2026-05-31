@@ -56,7 +56,7 @@ public class QueueListener {
         if (hasBypass(player, data)) {
             return;
         }
-        if (data.queue().isEmpty() && data.hasCapacity()) {
+        if (queueManager.canConnectDirectly(data)) {
             return;
         }
         Optional<RegisteredServer> fallback = selectFallback(data);
@@ -96,7 +96,7 @@ public class QueueListener {
         if (hasBypass(player, data)) {
             return;
         }
-        if (data.queue().isEmpty() && data.hasCapacity()) {
+        if (queueManager.canConnectDirectly(data)) {
             return;
         }
         boolean alreadyConnected = player.getCurrentServer().isPresent();
@@ -213,7 +213,7 @@ public class QueueListener {
             Optional<ServerQueueData> managed = queueManager.get(fallback.getServerInfo()
                     .getName());
             if (managed.isPresent()) {
-                if (managed.get().hasCapacity()) {
+                if (queueManager.hasCapacityFor(managed.get())) {
                     return Optional.of(fallback);
                 }
                 continue;
@@ -235,7 +235,7 @@ public class QueueListener {
             String fallbackName = fallback.getServerInfo().getName();
             Optional<ServerQueueData> managed = queueManager.get(fallbackName);
             if (managed.isPresent()) {
-                if (managed.get().hasCapacity()) {
+                if (queueManager.hasCapacityFor(managed.get())) {
                     return Optional.of(fallback);
                 }
                 continue;

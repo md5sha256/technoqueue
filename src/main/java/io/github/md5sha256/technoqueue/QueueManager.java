@@ -4,10 +4,8 @@ import io.github.md5sha256.technoqueue.config.ServerQueueData;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -19,10 +17,14 @@ public class QueueManager {
     // Tracks which server queue a player is currently in, so we can enforce
     // that a player only ever occupies one queue at a time.
     private final Map<UUID, String> playerQueueLocation = new HashMap<>();
-    // Players whose connect was initiated by the drain. The listener uses this
-    // to distinguish queue-driven promotions from manual /server attempts —
-    // without it, any queued player could bypass the queue by running /server.
-    private final Set<UUID> promoting = new HashSet<>();
+    // Players whose connect was initiated by the drain, mapped to the server
+    // they are being promoted into. The listener uses this to distinguish
+    // queue-driven promotions from manual /server attempts — without it, any
+    // queued player could bypass the queue by running /server. The target
+    // server is recorded so an in-flight promotion counts against that server's
+    // capacity, which both throttles the drain and stops players from racing
+    // into the slot before the promoted connection lands.
+    private final Map<UUID, String> promoting = new HashMap<>();
 
     public void register(@NotNull ServerQueueData queueData) {
         lock.lock();
@@ -105,7 +107,7 @@ public class QueueManager {
             }
             UUID uuid = next.get().player();
             playerQueueLocation.remove(uuid);
-            promoting.add(uuid);
+            promoting.put(uuid, serverName);
             return next;
         } finally {
             lock.unlock();
@@ -124,10 +126,50 @@ public class QueueManager {
     public boolean isPromoting(@NotNull UUID player) {
         lock.lock();
         try {
-            return promoting.contains(player);
+            return promoting.containsKey(player);
         } finally {
             lock.unlock();
         }
+    }
+
+    // True when the target has room for one more player, counting promotions
+    // that the drain has already initiated but whose connections have not yet
+    // landed (Velocity only counts a player as connected once the connect
+    // completes). Used to throttle the drain so it never promotes more players
+    // than there are free slots.
+    public boolean hasCapacityFor(@NotNull ServerQueueData data) {
+        lock.lock();
+        try {
+            return effectiveLoad(data) < data.targetCapacity();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    // True when a player may connect straight to the target without queueing:
+    // nobody is waiting and there is real capacity once in-flight promotions are
+    // accounted for. Evaluating both conditions under the lock closes the race
+    // where the drain has just popped the last queued player (queue now empty)
+    // but their promotion has not yet occupied the slot.
+    public boolean canConnectDirectly(@NotNull ServerQueueData data) {
+        lock.lock();
+        try {
+            return data.queue().isEmpty() && effectiveLoad(data) < data.targetCapacity();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    // Connected players plus in-flight promotions into this server. Caller must
+    // hold the lock.
+    private int effectiveLoad(@NotNull ServerQueueData data) {
+        int promotingCount = 0;
+        for (String target : promoting.values()) {
+            if (target.equals(data.serverName())) {
+                promotingCount++;
+            }
+        }
+        return data.targetServer().getPlayersConnected().size() + promotingCount;
     }
 
     public @NotNull Optional<String> queuedServer(@NotNull UUID player) {
