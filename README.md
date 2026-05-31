@@ -10,11 +10,11 @@ full.
 ```
 src/main/java/...        Plugin source (Java 21, Velocity 3.5)
 src/test/java/...        JUnit 5 tests for QueueManager and PlayerQueue
-src/main/resources/      velocity-plugin.json, default technoqueue.yml
+src/main/resources/      velocity-plugin.json, default settings.yml, default messages.yml
 docker/proxy/Dockerfile  Multi-stage image: gradle build → itzg/mc-proxy
 docker/velocity/         velocity.toml, forwarding.secret, plugin config
-docker/limbo-{a,b}.toml  PicoLimbo configs for the two dev backends
-compose.yaml             Three-service dev stack (proxy + 2 limbos)
+docker/limbo-*.toml      PicoLimbo configs for the four dev backends
+compose.yaml             Five-service dev stack (proxy + 4 limbos)
 ```
 
 ## Local dev stack
@@ -85,7 +85,7 @@ docker compose build proxy              # rebuild image without restarting
 docker compose restart proxy            # pick up the new image
 ```
 
-`velocity.toml` and `technoqueue.yml` are bind-mounted into the proxy
+`velocity.toml` and `settings.yml` are bind-mounted into the proxy
 container, so config edits do **not** require an image rebuild:
 
 ```powershell
@@ -103,9 +103,10 @@ the host before committing:
 
 ## Plugin configuration
 
-`technoqueue.yml` lives at `plugins/technoqueue/technoqueue.yml` relative to
-the Velocity working directory. In the dev stack it's mounted from
-`docker/velocity/plugins/technoqueue/technoqueue.yml`.
+`settings.yml` lives at `plugins/technoqueue/settings.yml` relative to the
+Velocity working directory. It's written from a bundled default on first run.
+In the dev stack it's mounted from
+`docker/velocity/plugins/technoqueue/settings.yml`.
 
 ```yaml
 drain-interval-seconds: 10        # how often each queue tries to promote its head
@@ -118,6 +119,7 @@ servers:
       max-queue-size: 500   # max queued players; further connections are rejected
       fallbacks:            # ordered list of servers where queued players wait
         - <velocity-server-name>
+    bypass-permission: technoqueue.bypass.main  # optional; holders skip the queue entirely
     show-action-bar: true   # whether players queued for this server see the action bar
 
 permissions:
@@ -126,6 +128,13 @@ permissions:
   - permission: technoqueue.priority.staff
     weight: 100
 ```
+
+A `servers` entry with no `queue-settings` block is not queue-managed and is
+reachable directly. `bypass-permission` is optional — omit or leave it blank to
+disable. Player-facing strings (the action bar, queue-join notices, command
+output) live in a sibling `messages.yml`, written from a bundled default the
+same way; values are [MiniMessage](https://docs.advntr.dev/minimessage/format.html)
+templates.
 
 YAML keys are kebab-case — Configurate's default ObjectMapper derives them from
 the camelCase Java field names on `ServerSetting` and `ServerQueueSetting`.
@@ -155,6 +164,6 @@ appear in three places, all sourced from the single `FORWARDING_SECRET` value
 in `.env`:
 
 - `docker/velocity/forwarding.secret` — read by Velocity.
-- `docker/limbo-a.toml` / `docker/limbo-b.toml` — `secret = "${FORWARDING_SECRET}"`,
-  expanded from the env var passed to each PicoLimbo container.
+- `docker/limbo-*.toml` — each sets `secret = "${FORWARDING_SECRET}"`, expanded
+  from the env var passed to each PicoLimbo container.
 - `.env` — single source of truth, gitignored.
