@@ -10,7 +10,9 @@ import com.velocitypowered.api.proxy.server.RegisteredServer;
 import io.github.md5sha256.technoqueue.config.PermissionWeight;
 import io.github.md5sha256.technoqueue.config.ServerQueueData;
 import io.github.md5sha256.technoqueue.localization.MessageContainer;
+import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.luckperms.api.LuckPerms;
 import net.luckperms.api.cacheddata.CachedPermissionData;
 import net.luckperms.api.context.ContextManager;
@@ -21,6 +23,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 public class QueueListener {
 
@@ -29,15 +32,20 @@ public class QueueListener {
     private final LuckPerms luckPerms;
     // Sorted by weight descending so resolveWeight can short-circuit on the first match.
     private final List<PermissionWeight> permissionWeights;
+    // Compiled regexes matched against a kick's plain-text reason; a match means
+    // the player should not be funneled back into the queue.
+    private final List<Pattern> noRequeuePatterns;
 
     public QueueListener(@NotNull QueueManager queueManager,
                          @NotNull MessageContainer messages,
                          @NotNull LuckPerms luckPerms,
-                         @NotNull List<PermissionWeight> permissionWeights) {
+                         @NotNull List<PermissionWeight> permissionWeights,
+                         @NotNull List<Pattern> noRequeuePatterns) {
         this.queueManager = queueManager;
         this.messages = messages;
         this.luckPerms = luckPerms;
         this.permissionWeights = List.copyOf(permissionWeights);
+        this.noRequeuePatterns = List.copyOf(noRequeuePatterns);
     }
 
     @Subscribe
@@ -128,6 +136,19 @@ public class QueueListener {
     @Subscribe
     public void onKickedFromServer(KickedFromServerEvent event) {
         Player player = event.getPlayer();
+        // If the backend supplied a kick reason the admin has flagged as
+        // "don't re-queue" (e.g. AFK/idle kicks), let the kick stand instead of
+        // funneling the player back into the queue. Otherwise Velocity's
+        // post-kick failover reconnects them toward the target, that connect is
+        // treated as a fresh attempt and re-enqueued, and the drain promotes
+        // them straight back in — an endless AFK-kick loop.
+        Optional<Component> reason = event.getServerKickReason();
+        if (reason.isPresent()
+                && reasonMatches(plainText(reason.get()), noRequeuePatterns)) {
+            queueManager.dequeue(player.getUniqueId());
+            event.setResult(KickedFromServerEvent.DisconnectPlayer.create(reason.get()));
+            return;
+        }
         Optional<String> queued = queueManager.queuedServer(player.getUniqueId());
         if (queued.isEmpty()) {
             return;
@@ -151,6 +172,25 @@ public class QueueListener {
     @Subscribe
     public void onDisconnect(DisconnectEvent event) {
         queueManager.dequeue(event.getPlayer().getUniqueId());
+    }
+
+    // True if the plain-text kick reason matches any configured no-requeue
+    // regex. Patterns are tried with find(), so an unanchored pattern matches a
+    // substring of the reason.
+    static boolean reasonMatches(@NotNull String plainReason, @NotNull List<Pattern> patterns) {
+        if (plainReason.isEmpty()) {
+            return false;
+        }
+        for (Pattern pattern : patterns) {
+            if (pattern.matcher(plainReason).find()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static @NotNull String plainText(@NotNull Component component) {
+        return PlainTextComponentSerializer.plainText().serialize(component);
     }
 
     private boolean hasBypass(@NotNull Player player, @NotNull ServerQueueData data) {

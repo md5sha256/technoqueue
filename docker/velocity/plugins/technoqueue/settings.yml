@@ -28,3 +28,9 @@ permissions:
 
 drain-interval-seconds: 10
 action-bar-interval-seconds: 2
+
+# Kicks whose reason matches any of these (case-insensitive) regexes disconnect
+# the player instead of re-queueing them, so AFK/idle kicks don't loop back in.
+no-requeue-kick-reasons:
+  - "(?i)\\bafk\\b"
+  - "idle"

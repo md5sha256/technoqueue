@@ -112,6 +112,10 @@ In the dev stack it's mounted from
 drain-interval-seconds: 10        # how often each queue tries to promote its head
 action-bar-interval-seconds: 2    # global cadence of the queued-position action bar (0 = off)
 
+no-requeue-kick-reasons:          # regexes; a kick whose reason matches is NOT re-queued
+  - "(?i)\\bafk\\b"               # case-insensitive, unanchored (substring) match
+  - "idle"
+
 servers:
   <velocity-server-name>:
     queue-settings:
@@ -146,6 +150,14 @@ the `[servers]` table in `velocity.toml`).
 joins a queue, they are inserted ahead of everyone with a strictly lower
 weight. Players without any matching permission default to weight 0. Within a
 single weight tier, ordering is FIFO.
+
+`no-requeue-kick-reasons` is an optional list of regular expressions, each
+matched case-insensitively (and unanchored, so any substring counts) against the
+plain-text kick reason a backend sends. When a kick reason matches, the player is
+disconnected with that reason instead of being funneled back into the queue —
+this stops AFK/idle kicks from looping a player straight back into the server
+that just kicked them. Invalid patterns are logged and ignored; an empty list
+(the default) means every kick is handled by the normal fallback/re-queue flow.
 
 ## Commands
 

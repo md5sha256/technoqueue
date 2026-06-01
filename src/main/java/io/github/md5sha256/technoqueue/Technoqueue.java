@@ -40,6 +40,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 public class Technoqueue {
 
@@ -76,6 +78,7 @@ public class Technoqueue {
         List<PermissionWeight> sorted = new ArrayList<>(config.permissions());
         sorted.sort(Comparator.comparingInt(PermissionWeight::weight).reversed());
         List<PermissionWeight> permissionWeights = List.copyOf(sorted);
+        List<Pattern> noRequeuePatterns = compileNoRequeuePatterns(config.noRequeueKickReasons());
         Duration drainInterval = Duration.ofSeconds(config.drainIntervalSeconds());
         Duration actionBarInterval = Duration.ofSeconds(config.actionBarIntervalSeconds());
         for (Map.Entry<String, ServerSetting> mapEntry : config.servers().entrySet()) {
@@ -132,8 +135,27 @@ public class Technoqueue {
                     queueSetting.fallbacks());
         }
         server.getEventManager()
-                .register(this, new QueueListener(queueManager, messages, luckPerms, permissionWeights));
+                .register(this, new QueueListener(queueManager, messages, luckPerms,
+                        permissionWeights, noRequeuePatterns));
         registerCommands();
+    }
+
+    // Compiles the configured no-requeue kick-reason regexes (case-insensitive),
+    // skipping blanks and warning on — rather than failing over — invalid syntax.
+    private @NotNull List<Pattern> compileNoRequeuePatterns(@NotNull List<String> raw) {
+        List<Pattern> patterns = new ArrayList<>(raw.size());
+        for (String regex : raw) {
+            if (regex == null || regex.isBlank()) {
+                continue;
+            }
+            try {
+                patterns.add(Pattern.compile(regex, Pattern.CASE_INSENSITIVE));
+            } catch (PatternSyntaxException e) {
+                logger.warn("Ignoring invalid no-requeue-kick-reasons regex '{}': {}",
+                        regex, e.getMessage());
+            }
+        }
+        return List.copyOf(patterns);
     }
 
     private void registerCommands() {

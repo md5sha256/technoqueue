@@ -12,19 +12,24 @@ import java.util.Map;
 public record Settings(@NotNull @Setting("servers") @Required Map<String, ServerSetting> servers,
                        @NotNull @Setting("permissions") List<PermissionWeight> permissions,
                        @Setting("drain-interval-seconds") long drainIntervalSeconds,
-                       @Setting("action-bar-interval-seconds") long actionBarIntervalSeconds) {
+                       @Setting("action-bar-interval-seconds") long actionBarIntervalSeconds,
+                       @NotNull @Setting("no-requeue-kick-reasons") List<String> noRequeueKickReasons) {
 
     public Settings() {
-        this(Map.of(), List.of(), 10L, 2L);
+        this(Map.of(), List.of(), 10L, 2L, List.of());
     }
 
     public Settings(@NotNull Map<String, ServerSetting> servers,
                     @NotNull List<PermissionWeight> permissions,
                     long drainIntervalSeconds,
-                    long actionBarIntervalSeconds) {
+                    long actionBarIntervalSeconds,
+                    @NotNull List<String> noRequeueKickReasons) {
         this.servers = Map.copyOf(servers);
         this.permissions = List.copyOf(permissions);
         this.drainIntervalSeconds = drainIntervalSeconds;
         this.actionBarIntervalSeconds = actionBarIntervalSeconds;
+        // Defensive: a config file predating this key leaves the node absent.
+        this.noRequeueKickReasons =
+                noRequeueKickReasons == null ? List.of() : List.copyOf(noRequeueKickReasons);
     }
 }
