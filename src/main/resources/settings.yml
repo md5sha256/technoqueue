@@ -51,6 +51,13 @@ drain-interval-seconds: 10
 # otherwise enable/disable per server with `show-action-bar` under each entry.
 action-bar-interval-seconds: 2
 
+# Grace period (in seconds) for players who disconnect from the proxy while
+# waiting in a queue. For this long their place is held: the drain skips them
+# and keeps promoting the players behind them, and if they reconnect in time
+# they reclaim their exact position. Set to 0 (the default) to drop disconnected
+# players from the queue immediately.
+disconnect-grace-period-seconds: 0
+
 # Kick reasons that should NOT send the player back into the queue. Each entry
 # is a case-insensitive regular expression matched (unanchored, so a substring
 # match is enough) against the plain-text kick message from the backend. When a

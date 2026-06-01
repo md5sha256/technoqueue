@@ -23,6 +23,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.regex.Pattern;
 
 public class QueueListener {
@@ -35,21 +36,58 @@ public class QueueListener {
     // Compiled regexes matched against a kick's plain-text reason; a match means
     // the player should not be funneled back into the queue.
     private final List<Pattern> noRequeuePatterns;
+    // Seconds a disconnected player's queue spot is held before they're dropped;
+    // 0 disables the grace period (disconnects are dequeued immediately).
+    private final long disconnectGraceSeconds;
 
     public QueueListener(@NotNull QueueManager queueManager,
                          @NotNull MessageContainer messages,
                          @NotNull LuckPerms luckPerms,
                          @NotNull List<PermissionWeight> permissionWeights,
-                         @NotNull List<Pattern> noRequeuePatterns) {
+                         @NotNull List<Pattern> noRequeuePatterns,
+                         long disconnectGraceSeconds) {
         this.queueManager = queueManager;
         this.messages = messages;
         this.luckPerms = luckPerms;
         this.permissionWeights = List.copyOf(permissionWeights);
         this.noRequeuePatterns = List.copyOf(noRequeuePatterns);
+        this.disconnectGraceSeconds = disconnectGraceSeconds;
     }
 
     @Subscribe
     public void onPlayerConnect(PlayerChooseInitialServerEvent event) {
+        Player player = event.getPlayer();
+        UUID uuid = player.getUniqueId();
+        // A player who is still tracked in a queue at initial-connect time is
+        // reconnecting within their disconnect grace window. Clear the offline
+        // flag so the drain can promote them again, put them back on a fallback
+        // to wait, and restore their position view — they keep the exact spot
+        // they held while away.
+        Optional<String> heldQueue = queueManager.queuedServer(uuid);
+        if (heldQueue.isPresent()) {
+            Optional<ServerQueueData> heldData = queueManager.get(heldQueue.get());
+            if (heldData.isPresent()) {
+                queueManager.markOnline(uuid);
+                Optional<RegisteredServer> fallback = selectFallback(heldData.get());
+                if (fallback.isPresent()) {
+                    event.setInitialServer(fallback.get());
+                    player.sendMessage(messages.prefixedTemplate("queue.reconnected",
+                            Placeholder.unparsed("server", heldQueue.get())));
+                    queueManager.status(uuid)
+                            .ifPresent(status -> player.sendMessage(
+                                    QueueCommand.statusMessage(messages, status)));
+                } else {
+                    // No fallback to wait on — can't hold them in limbo, so give
+                    // up their spot and disconnect rather than risk dropping them
+                    // straight onto the full target.
+                    queueManager.dequeue(uuid);
+                    event.setInitialServer(null);
+                    player.disconnect(messages.template("queue.full-disconnect",
+                            Placeholder.unparsed("server", heldQueue.get())));
+                }
+                return;
+            }
+        }
         Optional<RegisteredServer> chosen = event.getInitialServer();
         if (chosen.isEmpty()) {
             return;
@@ -60,7 +98,6 @@ public class QueueListener {
             return;
         }
         ServerQueueData data = dataOpt.get();
-        Player player = event.getPlayer();
         if (hasBypass(player, data)) {
             return;
         }
@@ -171,7 +208,15 @@ public class QueueListener {
 
     @Subscribe
     public void onDisconnect(DisconnectEvent event) {
-        queueManager.dequeue(event.getPlayer().getUniqueId());
+        UUID uuid = event.getPlayer().getUniqueId();
+        if (disconnectGraceSeconds > 0) {
+            // Hold their spot for the grace window instead of dropping them now;
+            // the drain skips them while offline and they reclaim their position
+            // if they reconnect in time. No-op if they weren't queued.
+            queueManager.markOffline(uuid, disconnectGraceSeconds);
+        } else {
+            queueManager.dequeue(uuid);
+        }
     }
 
     // True if the plain-text kick reason matches any configured no-requeue

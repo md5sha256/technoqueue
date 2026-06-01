@@ -4,6 +4,7 @@ import io.github.md5sha256.technoqueue.config.ServerQueueData;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -25,6 +26,13 @@ public class QueueManager {
     // capacity, which both throttles the drain and stops players from racing
     // into the slot before the promoted connection lands.
     private final Map<UUID, String> promoting = new HashMap<>();
+    // Players who disconnected from the proxy while queued, mapped to the
+    // wall-clock millis at which their grace window lapses. They stay in their
+    // queue at their position; the drain skips them (promoting online players
+    // behind them) until they either reconnect (markOnline) or the window
+    // expires, at which point they are dropped. Empty when the grace feature is
+    // disabled, since the listener dequeues disconnects outright in that case.
+    private final Map<UUID, Long> offlineDeadline = new HashMap<>();
 
     public void register(@NotNull ServerQueueData queueData) {
         lock.lock();
@@ -77,6 +85,7 @@ public class QueueManager {
     public void dequeue(@NotNull UUID player) {
         lock.lock();
         try {
+            offlineDeadline.remove(player);
             String location = playerQueueLocation.remove(player);
             if (location == null) {
                 return;
@@ -90,10 +99,16 @@ public class QueueManager {
         }
     }
 
-    // Atomically pops the head of the named queue, clears its location tracking,
-    // and marks the player as being promoted. Splitting these steps would let a
-    // queued player's manual /server slip through between the dequeue and the
-    // mark, bypassing the queue.
+    // Walks the named queue in priority order and atomically pops the first
+    // promotable player, clearing its location tracking and marking it as being
+    // promoted. Splitting the pop/clear/mark steps would let a queued player's
+    // manual /server slip through and bypass the queue, so they stay together
+    // under the one lock.
+    //
+    // Players inside their disconnect grace window are skipped (left in place so
+    // they keep their position) and the player behind them is promoted instead;
+    // players whose grace window has lapsed are dropped as they're passed. A
+    // player not flagged offline is treated as promotable.
     public @NotNull Optional<QueueEntry> beginPromotion(@NotNull String serverName) {
         lock.lock();
         try {
@@ -101,14 +116,103 @@ public class QueueManager {
             if (data == null) {
                 return Optional.empty();
             }
-            Optional<QueueEntry> next = data.queue().dequePlayer();
-            if (next.isEmpty()) {
-                return Optional.empty();
+            long now = System.currentTimeMillis();
+            for (QueueEntry entry : data.queue().queuePositions()) {
+                UUID uuid = entry.player();
+                Long deadline = offlineDeadline.get(uuid);
+                if (deadline != null) {
+                    if (deadline > now) {
+                        // Disconnected but within grace: leave them in place.
+                        continue;
+                    }
+                    // Grace lapsed: drop and keep scanning for an online player.
+                    data.queue().dequeuePlayer(uuid);
+                    playerQueueLocation.remove(uuid);
+                    offlineDeadline.remove(uuid);
+                    continue;
+                }
+                data.queue().dequeuePlayer(uuid);
+                playerQueueLocation.remove(uuid);
+                promoting.put(uuid, serverName);
+                return Optional.of(entry);
             }
-            UUID uuid = next.get().player();
-            playerQueueLocation.remove(uuid);
-            promoting.put(uuid, serverName);
-            return next;
+            return Optional.empty();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    // Marks a queued player as disconnected, starting their grace window. The
+    // player keeps their queue position; beginPromotion skips them until they
+    // reconnect or the window lapses. No-op if the player isn't in a queue (e.g.
+    // a disconnect mid-promotion, handled by requeueAtHead instead).
+    public void markOffline(@NotNull UUID player, long graceSeconds) {
+        lock.lock();
+        try {
+            if (!playerQueueLocation.containsKey(player)) {
+                return;
+            }
+            offlineDeadline.put(player, System.currentTimeMillis() + graceSeconds * 1000L);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    // Clears a reconnecting player's grace window so the drain can promote them
+    // again. They keep the queue position they held while offline.
+    public void markOnline(@NotNull UUID player) {
+        lock.lock();
+        try {
+            offlineDeadline.remove(player);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    // Drops queued players whose grace window has lapsed. Run on a timer so
+    // offline players are cleaned up even when beginPromotion never reaches them
+    // (e.g. the target has no capacity, so the drain promotes nobody).
+    public void sweepExpired() {
+        lock.lock();
+        try {
+            long now = System.currentTimeMillis();
+            Iterator<Map.Entry<UUID, Long>> it = offlineDeadline.entrySet().iterator();
+            while (it.hasNext()) {
+                Map.Entry<UUID, Long> deadline = it.next();
+                if (deadline.getValue() > now) {
+                    continue;
+                }
+                UUID player = deadline.getKey();
+                it.remove();
+                String location = playerQueueLocation.remove(player);
+                if (location != null) {
+                    ServerQueueData data = queueDataMap.get(location);
+                    if (data != null) {
+                        data.queue().dequeuePlayer(player);
+                    }
+                }
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    // Restores a player who was popped for promotion but whose connection failed
+    // while they were the head, putting them back at the front of their weight
+    // tier. Paired with markOffline when the failure was a disconnect, so they
+    // keep their place while offline and are first in line on reconnect.
+    public boolean requeueAtHead(@NotNull String serverName, @NotNull QueueEntry entry) {
+        lock.lock();
+        try {
+            ServerQueueData data = queueDataMap.get(serverName);
+            if (data == null) {
+                return false;
+            }
+            boolean queued = data.queue().requeueAtHead(entry);
+            if (queued) {
+                playerQueueLocation.put(entry.player(), serverName);
+            }
+            return queued;
         } finally {
             lock.unlock();
         }

@@ -8,6 +8,8 @@ prefix: "<gray>[<aqua>Queue</aqua>]</gray>"
 queue:
   # <server> -- the target server name
   joined: "<yellow>Server '<server>' is full — you've been placed in the queue.</yellow>"
+  # <server> -- shown when a player reconnects within the disconnect grace period
+  reconnected: "<green>Welcome back — your place in the queue for '<server>' was held.</green>"
   # <server> -- the target server name
   full-disconnect: "<red>The queue for '<server>' is full. Please try again later.</red>"
   # <server> -- the target server name

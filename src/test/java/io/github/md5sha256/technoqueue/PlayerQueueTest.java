@@ -217,4 +217,55 @@ class PlayerQueueTest {
         Optional<QueueEntry> result = queue.dequePlayer();
         assertTrue(result.isEmpty());
     }
+
+    @Test
+    void requeueAtHeadReturnsEntryToFrontOfTier() {
+        PlayerQueue queue = new PlayerQueue(10);
+        UUID first = uuid();
+        UUID second = uuid();
+        queue.enqueuePlayer(first, 0);
+        queue.enqueuePlayer(second, 0);
+
+        QueueEntry head = queue.dequePlayer().orElseThrow();
+        assertEquals(first, head.player());
+
+        assertTrue(queue.requeueAtHead(head));
+        assertEquals(2, queue.size());
+        // Restored ahead of the player who was behind them.
+        assertEquals(first, queue.dequePlayer().orElseThrow().player());
+        assertEquals(second, queue.dequePlayer().orElseThrow().player());
+    }
+
+    @Test
+    void requeueAtHeadGoesAheadOfSameTierLatecomers() {
+        PlayerQueue queue = new PlayerQueue(10);
+        UUID popped = uuid();
+        queue.enqueuePlayer(popped, 5);
+        QueueEntry head = queue.dequePlayer().orElseThrow();
+
+        // Someone joins the same tier while the popped player was being promoted.
+        UUID latecomer = uuid();
+        queue.enqueuePlayer(latecomer, 5);
+
+        assertTrue(queue.requeueAtHead(head));
+        assertEquals(popped, queue.dequePlayer().orElseThrow().player());
+        assertEquals(latecomer, queue.dequePlayer().orElseThrow().player());
+    }
+
+    @Test
+    void requeueAtHeadStaysBehindHigherWeight() {
+        PlayerQueue queue = new PlayerQueue(10);
+        UUID low = uuid();
+        queue.enqueuePlayer(low, 0);
+        QueueEntry head = queue.dequePlayer().orElseThrow();
+
+        // A higher-weight player arrives before the popped one is restored.
+        UUID high = uuid();
+        queue.enqueuePlayer(high, 10);
+
+        assertTrue(queue.requeueAtHead(head));
+        // Front of their own tier, but still behind the higher-weight player.
+        assertEquals(high, queue.dequePlayer().orElseThrow().player());
+        assertEquals(low, queue.dequePlayer().orElseThrow().player());
+    }
 }

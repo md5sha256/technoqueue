@@ -164,4 +164,120 @@ class QueueManagerTest {
         QueueManager manager = new QueueManager();
         assertTrue(manager.queuedServer(UUID.randomUUID()).isEmpty());
     }
+
+    @Test
+    void markOfflineKeepsPlayerQueued() {
+        QueueManager manager = new QueueManager();
+        ServerQueueData data = data("main", 10);
+        manager.register(data);
+        UUID player = UUID.randomUUID();
+        manager.enqueue(player, "main", 0);
+
+        manager.markOffline(player, 60);
+        assertEquals(1, data.queue().size());
+        assertEquals(Optional.of("main"), manager.queuedServer(player));
+    }
+
+    @Test
+    void markOfflineIgnoresUnqueuedPlayer() {
+        QueueManager manager = new QueueManager();
+        ServerQueueData data = data("main", 10);
+        manager.register(data);
+
+        // No exception, no phantom tracking for a player who isn't queued.
+        manager.markOffline(UUID.randomUUID(), 60);
+        assertEquals(0, data.queue().size());
+    }
+
+    @Test
+    void beginPromotionSkipsOfflinePlayerWithinGrace() {
+        QueueManager manager = new QueueManager();
+        ServerQueueData data = data("main", 10);
+        manager.register(data);
+        UUID offline = UUID.randomUUID();
+        UUID online = UUID.randomUUID();
+        manager.enqueue(offline, "main", 0);
+        manager.enqueue(online, "main", 0);
+
+        manager.markOffline(offline, 60);
+
+        // The offline head is skipped; the online player behind them is promoted.
+        QueueEntry promoted = manager.beginPromotion("main").orElseThrow();
+        assertEquals(online, promoted.player());
+        // The offline player keeps their spot at the front.
+        assertEquals(Optional.of("main"), manager.queuedServer(offline));
+        assertEquals(1, data.queue().size());
+        assertTrue(manager.queuedServer(online).isEmpty());
+    }
+
+    @Test
+    void beginPromotionDropsOfflinePlayerPastGrace() {
+        QueueManager manager = new QueueManager();
+        ServerQueueData data = data("main", 10);
+        manager.register(data);
+        UUID player = UUID.randomUUID();
+        manager.enqueue(player, "main", 0);
+
+        // grace 0 => deadline is "now", which has lapsed by the time we promote.
+        manager.markOffline(player, 0);
+        assertTrue(manager.beginPromotion("main").isEmpty());
+        assertEquals(0, data.queue().size());
+        assertTrue(manager.queuedServer(player).isEmpty());
+    }
+
+    @Test
+    void markOnlineMakesOfflinePlayerPromotableAgain() {
+        QueueManager manager = new QueueManager();
+        ServerQueueData data = data("main", 10);
+        manager.register(data);
+        UUID player = UUID.randomUUID();
+        manager.enqueue(player, "main", 0);
+        manager.markOffline(player, 60);
+
+        assertTrue(manager.beginPromotion("main").isEmpty());
+
+        manager.markOnline(player);
+        assertEquals(player, manager.beginPromotion("main").orElseThrow().player());
+    }
+
+    @Test
+    void sweepExpiredRemovesLapsedButKeepsWithinGrace() {
+        QueueManager manager = new QueueManager();
+        ServerQueueData data = data("main", 10);
+        manager.register(data);
+        UUID lapsed = UUID.randomUUID();
+        UUID withinGrace = UUID.randomUUID();
+        manager.enqueue(lapsed, "main", 0);
+        manager.enqueue(withinGrace, "main", 0);
+        manager.markOffline(lapsed, 0);
+        manager.markOffline(withinGrace, 60);
+
+        manager.sweepExpired();
+
+        assertTrue(manager.queuedServer(lapsed).isEmpty());
+        assertEquals(Optional.of("main"), manager.queuedServer(withinGrace));
+        assertEquals(1, data.queue().size());
+    }
+
+    @Test
+    void requeueAtHeadRestoresPlayerToFront() {
+        QueueManager manager = new QueueManager();
+        ServerQueueData data = data("main", 10);
+        manager.register(data);
+        UUID first = UUID.randomUUID();
+        UUID second = UUID.randomUUID();
+        manager.enqueue(first, "main", 0);
+        manager.enqueue(second, "main", 0);
+
+        QueueEntry head = manager.beginPromotion("main").orElseThrow();
+        assertEquals(first, head.player());
+        manager.clearPromoting(first);
+
+        // Simulate a failed promotion: the popped head goes back to the front.
+        assertTrue(manager.requeueAtHead("main", head));
+        assertEquals(Optional.of("main"), manager.queuedServer(first));
+        QueueEntry[] positions = data.queue().queuePositions();
+        assertEquals(first, positions[0].player());
+        assertEquals(second, positions[1].player());
+    }
 }

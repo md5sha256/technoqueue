@@ -50,6 +50,10 @@ public class Technoqueue {
     private final Path dataDir;
     private final QueueManager queueManager = new QueueManager();
     private final MessageContainer messages = new MessageContainer();
+    // Seconds a disconnected player's queue spot is held; 0 disables the grace
+    // period. Read from config on init and consulted by the promotion-failure
+    // handler when a player drops mid-promotion.
+    private long disconnectGraceSeconds;
 
     @Inject
     public Technoqueue(@NotNull Logger logger,
@@ -81,6 +85,7 @@ public class Technoqueue {
         List<Pattern> noRequeuePatterns = compileNoRequeuePatterns(config.noRequeueKickReasons());
         Duration drainInterval = Duration.ofSeconds(config.drainIntervalSeconds());
         Duration actionBarInterval = Duration.ofSeconds(config.actionBarIntervalSeconds());
+        this.disconnectGraceSeconds = config.disconnectGracePeriodSeconds();
         for (Map.Entry<String, ServerSetting> mapEntry : config.servers().entrySet()) {
             String name = mapEntry.getKey();
             ServerSetting entry = mapEntry.getValue();
@@ -134,9 +139,14 @@ public class Technoqueue {
                     name, queueSetting.targetCapacity(), queueSetting.maxQueueSize(),
                     queueSetting.fallbacks());
         }
+        if (disconnectGraceSeconds > 0) {
+            // Reaps queued players whose grace window lapsed but whom the drain
+            // never reached (e.g. the target had no capacity to promote into).
+            scheduleSweeper(Duration.ofSeconds(1));
+        }
         server.getEventManager()
                 .register(this, new QueueListener(queueManager, messages, luckPerms,
-                        permissionWeights, noRequeuePatterns));
+                        permissionWeights, noRequeuePatterns, disconnectGraceSeconds));
         registerCommands();
     }
 
@@ -219,6 +229,14 @@ public class Technoqueue {
                 .schedule();
     }
 
+    private void scheduleSweeper(@NotNull Duration interval) {
+        server.getScheduler()
+                .buildTask(this, queueManager::sweepExpired)
+                .repeat(interval)
+                .delay(interval)
+                .schedule();
+    }
+
     private void scheduleActionBar(@NotNull ServerQueueData data, @NotNull Duration interval) {
         server.getScheduler()
                 .buildTask(this, () -> sendActionBars(data))
@@ -280,7 +298,16 @@ public class Technoqueue {
                                     data.serverName(),
                                     describePromotionFailure(result),
                                     err);
-                            queueManager.enqueue(uuid, data.serverName(), weight);
+                            if (disconnectGraceSeconds > 0 && server.getPlayer(uuid).isEmpty()) {
+                                // Dropped mid-promotion: restore them to the head
+                                // of their tier and start their grace window so
+                                // they keep their place while offline rather than
+                                // going to the back of the queue.
+                                queueManager.requeueAtHead(data.serverName(), entry);
+                                queueManager.markOffline(uuid, disconnectGraceSeconds);
+                            } else {
+                                queueManager.enqueue(uuid, data.serverName(), weight);
+                            }
                         }
                     });
         }
