@@ -144,6 +144,21 @@ public class QueueListener {
         if (queueManager.canConnectDirectly(data)) {
             return;
         }
+        // A player already waiting in this server's queue keeps their existing
+        // spot. Re-enqueuing would reset their position to the back of their
+        // weight tier — the exact bug a player hits when, while killing time on
+        // a fallback, they run /server <target> to rejoin the queue they're
+        // already in. Just deny the manual attempt (the drain promotes them
+        // when a slot frees) and re-show their held position.
+        if (queueManager.queuedServer(player.getUniqueId())
+                .filter(serverName::equals).isPresent()) {
+            event.setResult(ServerPreConnectEvent.ServerResult.denied());
+            player.sendMessage(messages.prefixedTemplate("queue.already-queued",
+                    Placeholder.unparsed("server", serverName)));
+            queueManager.status(player.getUniqueId())
+                    .ifPresent(status -> player.sendMessage(QueueCommand.statusMessage(messages, status)));
+            return;
+        }
         boolean alreadyConnected = player.getCurrentServer().isPresent();
         Optional<RegisteredServer> fallback = alreadyConnected
                 ? Optional.empty()
